@@ -1,0 +1,24 @@
+{
+  "name": "somework/composer-symlinks",
+  "description": "Create relative symlinks based on getcwd() and relative data",
+  "minimum-stability": "dev",
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "Pinchuk Igor",
+      "email": "i.pinchuk.personal@gmail.com"
+    }
+  ],
+  "autoload": {
+    "psr-4": {
+      "SomeWork\\": "src/"
+    }
+  },
+  "require": {
+    "php": ">7.0",
+    "roave/security-advisories": "dev-master"
+  },
+  "require-dev": {
+    "friendsofphp/php-cs-fixer": "@stable"
+  }
+}
