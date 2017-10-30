@@ -7,6 +7,10 @@ use Composer\Util\Filesystem;
 
 class Symlinks
 {
+    /**
+     * @param Event $event
+     * @throws InvalidArgumentException
+     */
     public static function create(Event $event): void
     {
         $fileSystem = new Filesystem();
