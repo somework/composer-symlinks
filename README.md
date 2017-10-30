@@ -17,13 +17,18 @@ Usage
 
 ### 1. Define symlinks
 
-Create the symlinks definition adding a `somework/composer-symlinks` section inside the `extra` section of the composer.json file:
+Create the symlinks definition adding a `somework/composer-symlinks` section inside the `extra` section of the composer.json file.
+
+Set `skip-missing-target` to true if we should not throw exception if target path doesn't exists 
 ```json
 {
     "extra": {
         "somework/composer-symlinks": {
-            "common/upload": "web/upload",
-            "common/static/dest": "web/dest"
+            "symlinks": {
+                "common/upload": "web/upload",
+                "common/static/dest": "web/dest"
+            },
+            "skip-missing-target": false
         }
     }
 }

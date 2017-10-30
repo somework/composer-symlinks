@@ -32,6 +32,10 @@ class Symlinks
             $linkPath = getcwd() . DIRECTORY_SEPARATOR . $link;
 
             if (!is_dir($targetPath)) {
+                if (static::isSkipMissedTarget($event)) {
+                    $event->getIO()->write("  Symlinking <comment>$target</comment> to <comment>$link</comment> - Skipped");
+                    continue;
+                }
                 throw new InvalidArgumentException(
                     sprintf('The target path %s does not exists', $targetPath)
                 );
@@ -47,16 +51,26 @@ class Symlinks
     {
         $extras = $event->getComposer()->getPackage()->getExtra();
 
-        if (!isset($extras['somework/composer-symlinks'])) {
-            throw new InvalidArgumentException('The parameter handler needs to be configured through the extra.somework/composer-symlinks setting.');
+        if (!isset($extras['somework/composer-symlinks']['symlinks'])) {
+            throw new InvalidArgumentException('The parameter handler needs to be configured through the extra.somework/composer-symlinks.symlinks setting.');
         }
 
-        $configs = $extras['somework/composer-symlinks'];
+        $configs = $extras['somework/composer-symlinks']['symlinks'];
 
         if (!is_array($configs)) {
-            throw new InvalidArgumentException('The extra.somework/composer-symlinks setting must be an array.');
+            throw new InvalidArgumentException('The extra.somework/composer-symlinks.symlinks setting must be an array.');
         }
 
         return array_unique($configs);
+    }
+
+    /**
+     * @param Event $event
+     * @return bool
+     */
+    protected static function isSkipMissedTarget(Event $event): bool
+    {
+        $extras = $event->getComposer()->getPackage()->getExtra();
+        return $extras['somework/composer-symlinks']['skip-missing-target'] ?: false;
     }
 }
