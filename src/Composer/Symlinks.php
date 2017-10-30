@@ -1,6 +1,6 @@
 <?php
 
-namespace SomeWork\ComposerSymlinks;
+namespace SomeWork\Composer;
 
 use Composer\Script\Event;
 use Composer\Util\Filesystem;

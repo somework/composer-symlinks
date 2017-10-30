@@ -1,6 +1,6 @@
 <?php
 
-namespace SomeWork\ComposerSymlinks;
+namespace SomeWork\Composer;
 
 class InvalidArgumentException extends \InvalidArgumentException
 {
