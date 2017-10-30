@@ -71,6 +71,9 @@ class Symlinks
     protected static function isSkipMissedTarget(Event $event): bool
     {
         $extras = $event->getComposer()->getPackage()->getExtra();
-        return $extras['somework/composer-symlinks']['skip-missing-target'] ?: false;
+        if (!isset($extras['somework/composer-symlinks']['skip-missing-target'])) {
+            return false;
+        }
+        return (bool)$extras['somework/composer-symlinks']['skip-missing-target'];
     }
 }
