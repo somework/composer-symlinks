@@ -11,7 +11,7 @@ class Symlinks
      * @param Event $event
      * @throws InvalidArgumentException
      */
-    public static function create(Event $event): void
+    public static function create(Event $event)
     {
         $fileSystem = new Filesystem();
         $symlinks = static::getSymlinks($event);
