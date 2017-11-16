@@ -31,7 +31,7 @@ class Symlinks
             $targetPath = getcwd() . DIRECTORY_SEPARATOR . $target;
             $linkPath = getcwd() . DIRECTORY_SEPARATOR . $link;
 
-            if (!is_dir($targetPath)) {
+            if (!is_dir($targetPath) && !is_file($targetPath)) {
                 if (static::isSkipMissedTarget($event)) {
                     $event->getIO()->write("  Symlinking <comment>$target</comment> to <comment>$link</comment> - Skipped");
                     continue;
