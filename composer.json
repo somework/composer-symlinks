@@ -1,8 +1,10 @@
 {
   "name": "somework/composer-symlinks",
+  "type": "composer-plugin",
   "description": "Create relative symlinks based on getcwd() and relative data",
   "minimum-stability": "dev",
   "license": "MIT",
+  "version": "1.0.1",
   "authors": [
     {
       "name": "Pinchuk Igor",
@@ -14,11 +16,12 @@
       "SomeWork\\": "src/"
     }
   },
+  "extra": {
+    "class": "SomeWork\\Symlinks\\Plugin"
+  },
   "require": {
     "php": ">7.0",
-    "roave/security-advisories": "dev-master"
-  },
-  "require-dev": {
-    "friendsofphp/php-cs-fixer": "@stable"
+    "composer-plugin-api": "^1.0",
+    "composer/composer": "*"
   }
 }

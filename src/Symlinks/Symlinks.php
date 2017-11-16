@@ -1,6 +1,6 @@
 <?php
 
-namespace SomeWork\Composer;
+namespace SomeWork\Symlinks;
 
 use Composer\Script\Event;
 use Composer\Util\Filesystem;
@@ -31,7 +31,7 @@ class Symlinks
             $targetPath = getcwd() . DIRECTORY_SEPARATOR . $target;
             $linkPath = getcwd() . DIRECTORY_SEPARATOR . $link;
 
-            if (!is_dir($targetPath)) {
+            if (!is_dir($targetPath) && !is_file($targetPath)) {
                 if (static::isSkipMissedTarget($event)) {
                     $event->getIO()->write("  Symlinking <comment>$target</comment> to <comment>$link</comment> - Skipped");
                     continue;
@@ -51,7 +51,7 @@ class Symlinks
     {
         $extras = $event->getComposer()->getPackage()->getExtra();
 
-        if (!isset($extras['somework/composer-symlinks']['symlinks'])) {
+        if (null === $extras['somework/composer-symlinks']['symlinks']) {
             throw new InvalidArgumentException('The parameter handler needs to be configured through the extra.somework/composer-symlinks.symlinks setting.');
         }
 
