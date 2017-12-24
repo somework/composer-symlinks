@@ -22,6 +22,7 @@
   "require": {
     "php": ">7.0",
     "composer-plugin-api": "^1.0",
-    "composer/composer": "*"
+    "composer/composer": "*",
+    "friendsofphp/php-cs-fixer": "@stable"
   }
 }
