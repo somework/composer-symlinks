@@ -1,6 +1,6 @@
 <?php
 
-namespace SomeWork\Composer;
+namespace SomeWork\Symlinks;
 
 use Composer\Script\Event;
 use Composer\Util\Filesystem;
@@ -51,7 +51,7 @@ class Symlinks
     {
         $extras = $event->getComposer()->getPackage()->getExtra();
 
-        if (!isset($extras['somework/composer-symlinks']['symlinks'])) {
+        if (null === $extras['somework/composer-symlinks']['symlinks']) {
             throw new InvalidArgumentException('The parameter handler needs to be configured through the extra.somework/composer-symlinks.symlinks setting.');
         }
 

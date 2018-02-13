@@ -34,24 +34,9 @@ Set `skip-missing-target` to true if we should not throw exception if target pat
 }
 ```
 
-### 3. Hook the script to composer events
+### 3. Execute composer
 
-Add a new script definition to the `scripts` section of the composer.json file, so the symlinks are created after
-packages installation or update:
-```json
-{
-    "scripts": {
-        "post-install-cmd": [
-            "SomeWork\\Composer\\Symlinks::create"
-        ],
-        "post-update-cmd": [
-            "SomeWork\\Composer\\Symlinks::create"
-        ]
-    }
-}
-```
-
-### 4. Execute composer
+DO NOT use --no-plugins for composer install or update
 
 License
 -------
