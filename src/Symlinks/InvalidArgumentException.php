@@ -2,6 +2,6 @@
 
 namespace SomeWork\Symlinks;
 
-class InvalidArgumentException extends \InvalidArgumentException
+class InvalidArgumentException extends \InvalidArgumentException implements SymlinksException
 {
 }

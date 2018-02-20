@@ -7,6 +7,7 @@ use Composer\IO\IOInterface;
 use Composer\Plugin\PluginInterface;
 use Composer\Script\Event;
 use Composer\Script\ScriptEvents;
+use Composer\Util\Filesystem;
 
 /**
  * Class Plugin
@@ -20,9 +21,6 @@ class Plugin implements PluginInterface
     /**
      * @param Composer    $composer
      * @param IOInterface $io
-     *
-     * @throws \RuntimeException
-     * @throws \SomeWork\Symlinks\InvalidArgumentException
      */
     public function activate(Composer $composer, IOInterface $io)
     {
@@ -32,14 +30,35 @@ class Plugin implements PluginInterface
     }
 
     /**
-     * @throws \RuntimeException
-     * @throws \SomeWork\Symlinks\InvalidArgumentException
      * @return callable
      */
     protected function createLinks(): callable
     {
         return function (Event $event) {
-            Symlinks::create($event);
+            $fileSystem = new Filesystem();
+            $factory = new SymlinksFactory($event, $fileSystem);
+            $processor = new SymlinksProcessor($fileSystem);
+
+            $symlinks = $factory->process();
+            foreach ($symlinks as $symlink) {
+                if ($processor->processSymlink($symlink)) {
+                    $event
+                        ->getIO()
+                        ->write(sprintf(
+                            '  Symlinking <comment>%s</comment> to <comment>%s</comment>',
+                            $symlink->getLink(),
+                            $symlink->getTarget()
+                        ));
+                } else {
+                    $event
+                        ->getIO()
+                        ->writeError(sprintf(
+                            '  Symlinking <comment>%s</comment> to <comment>%s</comment> - error',
+                            $symlink->getLink(),
+                            $symlink->getTarget()
+                        ));
+                }
+            }
         };
     }
 }

@@ -20,6 +20,7 @@ Usage
 Create the symlinks definition adding a `somework/composer-symlinks` section inside the `extra` section of the composer.json file.
 
 Set `skip-missing-target` to true if we should not throw exception if target path doesn't exists 
+Set `hard-links` to true if you want to create realpath symlinks
 ```json
 {
     "extra": {
@@ -28,7 +29,8 @@ Set `skip-missing-target` to true if we should not throw exception if target pat
                 "common/upload": "web/upload",
                 "common/static/dest": "web/dest"
             },
-            "skip-missing-target": false
+            "skip-missing-target": false,
+            "hard-links": false
         }
     }
 }
