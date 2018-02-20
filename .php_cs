@@ -13,7 +13,6 @@ return \PhpCsFixer\Config::create()
         '@PSR2'                                     => true,
         'psr0'                                      => true,
         'align_multiline_comment'                   => true,
-        'declare_strict_types'                      => true,
         'dir_constant'                              => true,
         'linebreak_after_opening_tag'               => true,
         'modernize_types_casting'                   => true,
@@ -37,7 +36,7 @@ return \PhpCsFixer\Config::create()
         'trailing_comma_in_multiline_array'         => true,
         'include'                                   => true,
         'array_syntax'                              => [
-            'syntax' => 'short'
+            'syntax' => 'short',
         ],
     ])
     ->setFinder($finder);

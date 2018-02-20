@@ -9,12 +9,19 @@ class Symlinks
 {
     /**
      * @param Event $event
+     *
+     * @throws \RuntimeException
      * @throws InvalidArgumentException
      */
     public static function create(Event $event)
     {
         $fileSystem = new Filesystem();
         $symlinks = static::getSymlinks($event);
+
+        $isSkipMissedTarget = static::isSkipMissedTarget($event);
+        $isHardLinks = static::isHardLinks($event);
+
+
         foreach ($symlinks as $target => $link) {
             if ($fileSystem->isAbsolutePath($target)) {
                 throw new InvalidArgumentException(
@@ -28,11 +35,11 @@ class Symlinks
                 );
             }
 
-            $targetPath = getcwd() . DIRECTORY_SEPARATOR . $target;
-            $linkPath = getcwd() . DIRECTORY_SEPARATOR . $link;
+            $targetPath = realpath(getcwd() . DIRECTORY_SEPARATOR . $target);
+            $linkPath = realpath(getcwd() . DIRECTORY_SEPARATOR . $link);
 
             if (!is_dir($targetPath) && !is_file($targetPath)) {
-                if (static::isSkipMissedTarget($event)) {
+                if ($isSkipMissedTarget) {
                     $event->getIO()->write("  Symlinking <comment>$target</comment> to <comment>$link</comment> - Skipped");
                     continue;
                 }
@@ -42,12 +49,15 @@ class Symlinks
             }
 
             $event->getIO()->write("  Symlinking <comment>$target</comment> to <comment>$link</comment>");
-            $fileSystem->ensureDirectoryExists(dirname($linkPath));
+            $fileSystem->ensureDirectoryExists(\dirname($linkPath));
+            if ($isHardLinks) {
+                @symlink($targetPath, $linkPath);
+            }
             $fileSystem->relativeSymlink($targetPath, $linkPath);
         }
     }
 
-    protected static function getSymlinks(Event $event)
+    protected static function getSymlinks(Event $event): array
     {
         $extras = $event->getComposer()->getPackage()->getExtra();
 
@@ -57,7 +67,7 @@ class Symlinks
 
         $configs = $extras['somework/composer-symlinks']['symlinks'];
 
-        if (!is_array($configs)) {
+        if (!\is_array($configs)) {
             throw new InvalidArgumentException('The extra.somework/composer-symlinks.symlinks setting must be an array.');
         }
 
@@ -66,6 +76,7 @@ class Symlinks
 
     /**
      * @param Event $event
+     *
      * @return bool
      */
     protected static function isSkipMissedTarget(Event $event): bool
@@ -75,5 +86,19 @@ class Symlinks
             return false;
         }
         return (bool)$extras['somework/composer-symlinks']['skip-missing-target'];
+    }
+
+    /**
+     * @param Event $event
+     *
+     * @return bool
+     */
+    protected static function isHardLinks(Event $event): bool
+    {
+        $extras = $event->getComposer()->getPackage()->getExtra();
+        if (!isset($extras['somework/composer-symlinks']['hard-links'])) {
+            return false;
+        }
+        return (bool)$extras['somework/composer-symlinks']['hard-links'];
     }
 }
