@@ -41,7 +41,10 @@ class Plugin implements PluginInterface
 
             $symlinks = $factory->process();
             foreach ($symlinks as $symlink) {
-                if ($processor->processSymlink($symlink)) {
+                try {
+                    if (!$processor->processSymlink($symlink)) {
+                        throw new RuntimeException('Unknown error');
+                    }
                     $event
                         ->getIO()
                         ->write(sprintf(
@@ -49,13 +52,23 @@ class Plugin implements PluginInterface
                             $symlink->getLink(),
                             $symlink->getTarget()
                         ));
-                } else {
+                } catch (LinkDirectoryError $exception) {
+                    $event
+                        ->getIO()
+                        ->write(sprintf(
+                            '  Symlinking <comment>%s</comment> to <comment>%s</comment> - %s',
+                            $symlink->getLink(),
+                            $symlink->getTarget(),
+                            'Skipped'
+                        ));
+                } catch (\Exception $exception) {
                     $event
                         ->getIO()
                         ->writeError(sprintf(
-                            '  Symlinking <comment>%s</comment> to <comment>%s</comment> - error',
+                            '  Symlinking <comment>%s</comment> to <comment>%s</comment> - %s',
                             $symlink->getLink(),
-                            $symlink->getTarget()
+                            $symlink->getTarget(),
+                            $exception->getMessage()
                         ));
                 }
             }

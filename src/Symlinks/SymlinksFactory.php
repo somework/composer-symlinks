@@ -13,6 +13,7 @@ class SymlinksFactory
     const SKIP_MISSED_TARGET = 'skip-missing-target';
     const ABSOLUTE_PATH = 'absolute-path';
     const THROW_EXCEPTION = 'throw-exception';
+    const FORCE_CREATE = 'force-create';
 
     /**
      * @var Filesystem
@@ -124,10 +125,25 @@ class SymlinksFactory
             throw new LinkDirectoryError($exception->getMessage(), $exception->getCode(), $exception);
         }
 
+        if (is_link($linkPath)) {
+            $linkPath = readlink($linkPath);
+            if (realpath($linkPath) === $targetPath) {
+                $this->event->getIO()->write(
+                    sprintf(
+                        '  Symlink <comment>%s</comment> to <comment>%s</comment> already created',
+                        $target,
+                        $link
+                    )
+                );
+                return null;
+            }
+        }
+
         return (new Symlink())
             ->setTarget($targetPath)
             ->setLink($linkPath)
-            ->setAbsolutePath($this->getConfig(static::ABSOLUTE_PATH, $linkData, false));
+            ->setAbsolutePath($this->getConfig(static::ABSOLUTE_PATH, $linkData, false))
+            ->setForceCreate($this->getConfig(static::FORCE_CREATE, $linkData, false));
     }
 
     /**

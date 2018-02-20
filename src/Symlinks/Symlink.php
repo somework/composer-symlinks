@@ -20,6 +20,11 @@ class Symlink
     protected $absolutePath = false;
 
     /**
+     * @var bool
+     */
+    protected $forceCreate = false;
+
+    /**
      * @return string
      */
     public function getTarget(): string
@@ -73,6 +78,25 @@ class Symlink
     public function setAbsolutePath(bool $absolutePath): Symlink
     {
         $this->absolutePath = $absolutePath;
+        return $this;
+    }
+
+    /**
+     * @return bool
+     */
+    public function isForceCreate(): bool
+    {
+        return $this->forceCreate;
+    }
+
+    /**
+     * @param bool $forceCreate
+     *
+     * @return Symlink
+     */
+    public function setForceCreate(bool $forceCreate): Symlink
+    {
+        $this->forceCreate = $forceCreate;
         return $this;
     }
 }
