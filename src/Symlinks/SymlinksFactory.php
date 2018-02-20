@@ -154,13 +154,17 @@ class SymlinksFactory
         $extras = $this->event->getComposer()->getPackage()->getExtra();
 
         if (!isset($extras[static::PACKAGE_NAME][static::SYMLINKS])) {
-            throw new InvalidArgumentException('The parameter handler needs to be configured through the extra.somework/composer-symlinks.symlinks setting.');
+            return [];
         }
 
         $configs = $extras[static::PACKAGE_NAME][static::SYMLINKS];
 
         if (!\is_array($configs)) {
-            throw new InvalidArgumentException('The extra.somework/composer-symlinks.symlinks setting must be an array.');
+            throw new InvalidArgumentException(sprintf(
+                'The extra.%s.%s setting must be an array.',
+                static::PACKAGE_NAME,
+                static::SYMLINKS
+            ));
         }
 
         return array_unique($configs);
