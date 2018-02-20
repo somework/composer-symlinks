@@ -4,7 +4,6 @@
   "description": "Create relative symlinks based on getcwd() and relative data",
   "minimum-stability": "dev",
   "license": "MIT",
-  "version": "1.0.1",
   "authors": [
     {
       "name": "Pinchuk Igor",
@@ -21,10 +20,10 @@
   },
   "require": {
     "php": ">7.0",
-    "composer-plugin-api": "^1.0",
-    "composer/composer": "*"
+    "composer-plugin-api": "^1.0"
   },
   "require-dev": {
-    "friendsofphp/php-cs-fixer": "@stable"
+    "friendsofphp/php-cs-fixer": "@stable",
+    "composer/composer": "^1.7@dev"
   }
 }
