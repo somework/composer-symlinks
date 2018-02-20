@@ -80,9 +80,9 @@ class SymlinksFactory
      *
      * @throws \SomeWork\Symlinks\LinkDirectoryError
      * @throws \SomeWork\Symlinks\InvalidArgumentException
-     * @return Symlink
+     * @return Symlink|null
      */
-    protected function processSymlink(string $target, $linkData): Symlink
+    protected function processSymlink(string $target, $linkData)
     {
         $link = $this->getLink($linkData);
 
