@@ -12,7 +12,7 @@ class SymlinksFactory
     const SYMLINKS = 'symlinks';
     const SKIP_MISSED_TARGET = 'skip-missing-target';
     const ABSOLUTE_PATH = 'absolute-path';
-    const THROW_EXCEPTION = 'exception';
+    const THROW_EXCEPTION = 'throw-exception';
 
     /**
      * @var Filesystem
@@ -32,31 +32,32 @@ class SymlinksFactory
 
 
     /**
-     * @throws \SomeWork\Symlinks\RuntimeException
-     * @throws \SomeWork\Symlinks\InvalidArgumentException
+     * @throws \Exception
      * @return Symlink[]
      */
     public function process(): array
     {
         $symlinksData = $this->getSymlinksData();
 
-        $symlinksData = array_filter($symlinksData, function ($linkData, $target) {
+        $symlinks = [];
+        foreach ($symlinksData as $target => $linkData) {
             try {
-                return $this->filterSymlink($target, $linkData);
+                $symlinks[] = $this->processSymlink($target, $linkData);
             } catch (SymlinksException $exception) {
                 if ($this->getConfig(static::THROW_EXCEPTION, $linkData, true)) {
                     throw $exception;
                 }
+                $this->event->getIO()->writeError(
+                    sprintf(
+                        '  Error while process <comment>%s</comment>: <comment>%s</comment>',
+                        $target,
+                        $exception->getMessage()
+                    )
+                );
             }
-            return false;
-        }, ARRAY_FILTER_USE_BOTH);
-
-        $symlinks = [];
-        foreach ($symlinksData as $target => $linkData) {
-            $symlinks[] = $this->processSymlink($target, $linkData);
         }
 
-        return $symlinks;
+        return array_filter($symlinks);
     }
 
     protected function getConfig(string $name, $link = null, $default = false): bool
@@ -76,32 +77,11 @@ class SymlinksFactory
      * @param string       $target
      * @param array|string $linkData
      *
-     * @throws \SomeWork\Symlinks\RuntimeException
+     * @throws \SomeWork\Symlinks\LinkDirectoryError
      * @throws \SomeWork\Symlinks\InvalidArgumentException
      * @return Symlink
      */
     protected function processSymlink(string $target, $linkData): Symlink
-    {
-        $link = $this->getLink($linkData);
-
-        $targetPath = realpath(getcwd() . DIRECTORY_SEPARATOR . $target);
-        $linkPath = realpath(getcwd() . DIRECTORY_SEPARATOR . $link);
-
-        return (new Symlink())
-            ->setTarget($targetPath)
-            ->setLink($linkPath)
-            ->setAbsolutePath($this->getConfig(static::ABSOLUTE_PATH, $linkData, false));
-    }
-
-    /**
-     * @param string       $target
-     * @param array|string $linkData
-     *
-     * @throws \SomeWork\Symlinks\LinkDirectoryError
-     * @throws \SomeWork\Symlinks\InvalidArgumentException
-     * @return bool
-     */
-    protected function filterSymlink(string $target, $linkData): bool
     {
         $link = $this->getLink($linkData);
 
@@ -125,12 +105,13 @@ class SymlinksFactory
             );
         }
 
-        $targetPath = realpath(getcwd() . DIRECTORY_SEPARATOR . $target);
-        $linkPath = realpath(getcwd() . DIRECTORY_SEPARATOR . $link);
+        $currentDirectory = realpath(getcwd());
+        $targetPath = realpath($currentDirectory . DIRECTORY_SEPARATOR . $target);
+        $linkPath = $currentDirectory . DIRECTORY_SEPARATOR . $link;
 
         if (!is_dir($targetPath) && !is_file($targetPath)) {
             if ($this->getConfig(static::SKIP_MISSED_TARGET, $link)) {
-                return false;
+                return null;
             }
             throw new InvalidArgumentException(
                 sprintf('The target path %s does not exists', $targetPath)
@@ -142,7 +123,11 @@ class SymlinksFactory
         } catch (\RuntimeException $exception) {
             throw new LinkDirectoryError($exception->getMessage(), $exception->getCode(), $exception);
         }
-        return true;
+
+        return (new Symlink())
+            ->setTarget($targetPath)
+            ->setLink($linkPath)
+            ->setAbsolutePath($this->getConfig(static::ABSOLUTE_PATH, $linkData, false));
     }
 
     /**

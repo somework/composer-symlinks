@@ -20,17 +20,23 @@ Usage
 Create the symlinks definition adding a `somework/composer-symlinks` section inside the `extra` section of the composer.json file.
 
 Set `skip-missing-target` to true if we should not throw exception if target path doesn't exists 
-Set `hard-links` to true if you want to create realpath symlinks
+Set `absolute-path` to true if you want to create realpath symlinks
+Set `throw-exception` to false if you dont want to break creating on some error while check symlinks
 ```json
 {
     "extra": {
         "somework/composer-symlinks": {
             "symlinks": {
                 "common/upload": "web/upload",
-                "common/static/dest": "web/dest"
+                "common/static/dest": {
+                    "skip-missing-target": false,
+                    "absolute-path": true,
+                    "throw-exception": false
+                }
             },
             "skip-missing-target": false,
-            "hard-links": false
+            "absolute-path": false,
+            "throw-exception": true
         }
     }
 }
