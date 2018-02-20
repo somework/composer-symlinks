@@ -23,6 +23,10 @@ Set `skip-missing-target` to true if we should not throw exception if target pat
 Set `absolute-path` to true if you want to create realpath symlinks  
 Set `throw-exception` to false if you dont want to break creating on some error while check symlinks  
 Set `force-create` to force unlink link if something already exists on link path    
+
+You can set personal configs for any symlink.  
+For personal configs `link` must be defined  
+
 ```json
 {
     "extra": {
@@ -30,6 +34,7 @@ Set `force-create` to force unlink link if something already exists on link path
             "symlinks": {
                 "common/upload": "web/upload",
                 "common/static/dest": {
+                    "link": "web/dest",
                     "skip-missing-target": false,
                     "absolute-path": true,
                     "throw-exception": false
