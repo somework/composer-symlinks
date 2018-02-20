@@ -19,9 +19,10 @@ Usage
 
 Create the symlinks definition adding a `somework/composer-symlinks` section inside the `extra` section of the composer.json file.
 
-Set `skip-missing-target` to true if we should not throw exception if target path doesn't exists 
-Set `absolute-path` to true if you want to create realpath symlinks
-Set `throw-exception` to false if you dont want to break creating on some error while check symlinks
+Set `skip-missing-target` to true if we should not throw exception if target path doesn't exists  
+Set `absolute-path` to true if you want to create realpath symlinks  
+Set `throw-exception` to false if you dont want to break creating on some error while check symlinks  
+Set `force-create` to force unlink link if something already exists on link path    
 ```json
 {
     "extra": {
@@ -34,6 +35,7 @@ Set `throw-exception` to false if you dont want to break creating on some error 
                     "throw-exception": false
                 }
             },
+            "force-create": false,
             "skip-missing-target": false,
             "absolute-path": false,
             "throw-exception": true
