@@ -80,7 +80,7 @@ class SymlinksFactory
      *
      * @throws \SomeWork\Symlinks\LinkDirectoryError
      * @throws \SomeWork\Symlinks\InvalidArgumentException
-     * @return Symlink|null
+     * @return null|Symlink
      */
     protected function processSymlink(string $target, $linkData)
     {
@@ -168,7 +168,7 @@ class SymlinksFactory
             ));
         }
 
-        return array_unique($configs);
+        return array_unique($configs, SORT_REGULAR);
     }
 
     /**
