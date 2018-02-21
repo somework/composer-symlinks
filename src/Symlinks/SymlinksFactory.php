@@ -125,18 +125,15 @@ class SymlinksFactory
             throw new LinkDirectoryError($exception->getMessage(), $exception->getCode(), $exception);
         }
 
-        if (is_link($linkPath)) {
-            $linkPath = readlink($linkPath);
-            if (realpath($linkPath) === $targetPath) {
-                $this->event->getIO()->write(
-                    sprintf(
-                        '  Symlink <comment>%s</comment> to <comment>%s</comment> already created',
-                        $target,
-                        $link
-                    )
-                );
-                return null;
-            }
+        if (is_link($linkPath) && realpath(readlink($linkPath)) === $targetPath) {
+            $this->event->getIO()->write(
+                sprintf(
+                    '  Symlink <comment>%s</comment> to <comment>%s</comment> already created',
+                    $target,
+                    $link
+                )
+            );
+            return null;
         }
 
         return (new Symlink())
