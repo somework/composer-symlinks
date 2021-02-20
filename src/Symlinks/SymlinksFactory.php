@@ -80,6 +80,8 @@ class SymlinksFactory
      * @param string $target
      * @param array|string $linkData
      *
+     * @throws LinkDirectoryError
+     * @throws InvalidArgumentException
      * @return array
      */
     protected function processSymlinks(string $target, $linkData): array
@@ -148,7 +150,10 @@ class SymlinksFactory
     /**
      * @param string $target
      * @param string $link
-     * @param $linkData
+     * @param array|string $linkData
+     *
+     * @throws LinkDirectoryError
+     * @throws InvalidArgumentException
      * @return null|Symlink
      */
     private function processSymlink(string $target, string $link, $linkData)
