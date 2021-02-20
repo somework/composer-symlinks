@@ -38,6 +38,13 @@ For personal configs `link` must be defined
                     "skip-missing-target": false,
                     "absolute-path": true,
                     "throw-exception": false
+                },
+                "common/local": {
+                    "links": [
+                        "web1/local",
+                        "web2/local",
+                        "web3/local"
+                    ]
                 }
             },
             "force-create": false,
