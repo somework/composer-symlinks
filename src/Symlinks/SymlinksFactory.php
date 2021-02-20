@@ -4,6 +4,7 @@ namespace SomeWork\Symlinks;
 
 use Composer\Script\Event;
 use Composer\Util\Filesystem;
+use Exception;
 
 class SymlinksFactory
 {
@@ -14,6 +15,7 @@ class SymlinksFactory
     const ABSOLUTE_PATH = 'absolute-path';
     const THROW_EXCEPTION = 'throw-exception';
     const FORCE_CREATE = 'force-create';
+    const LINK = 'link';
 
     /**
      * @var Filesystem
@@ -33,8 +35,8 @@ class SymlinksFactory
 
 
     /**
-     * @throws \Exception
      * @return Symlink[]
+     * @throws Exception|SymlinksException
      */
     public function process(): array
     {
@@ -43,7 +45,7 @@ class SymlinksFactory
         $symlinks = [];
         foreach ($symlinksData as $target => $linkData) {
             try {
-                $symlinks[] = $this->processSymlink($target, $linkData);
+                $symlinks[] = $this->processSymlinks($target, $linkData);
             } catch (SymlinksException $exception) {
                 if ($this->getConfig(static::THROW_EXCEPTION, $linkData, true)) {
                     throw $exception;
@@ -58,7 +60,7 @@ class SymlinksFactory
             }
         }
 
-        return array_filter($symlinks);
+        return array_filter(array_merge(...$symlinks));
     }
 
     protected function getConfig(string $name, $link = null, $default = false): bool
@@ -75,23 +77,89 @@ class SymlinksFactory
     }
 
     /**
-     * @param string       $target
+     * @param string $target
      * @param array|string $linkData
      *
-     * @throws \SomeWork\Symlinks\LinkDirectoryError
-     * @throws \SomeWork\Symlinks\InvalidArgumentException
-     * @return null|Symlink
+     * @throws LinkDirectoryError
+     * @throws InvalidArgumentException
+     * @return array
      */
-    protected function processSymlink(string $target, $linkData)
+    protected function processSymlinks(string $target, $linkData): array
     {
-        $link = $this->getLink($linkData);
-
-        if (!$link) {
-            throw new InvalidArgumentException('No link passed in config');
-        }
-
+        $symlinks = [];
         if (!$target) {
             throw new InvalidArgumentException('No target passed in config');
+        }
+
+        $links = $this->getLinks($linkData);
+
+        foreach ($links as $link){
+            $symlinks[] = $this->processSymlink($target, $link, $linkData);
+        }
+
+        return $symlinks;
+    }
+
+    /**
+     * @throws InvalidArgumentException
+     * @return array
+     */
+    protected function getSymlinksData(): array
+    {
+        $extras = $this->event->getComposer()->getPackage()->getExtra();
+
+        if (!isset($extras[static::PACKAGE_NAME][static::SYMLINKS])) {
+            return [];
+        }
+
+        $configs = $extras[static::PACKAGE_NAME][static::SYMLINKS];
+
+        if (!\is_array($configs)) {
+            throw new InvalidArgumentException(sprintf(
+                'The extra.%s.%s setting must be an array.',
+                static::PACKAGE_NAME,
+                static::SYMLINKS
+            ));
+        }
+
+        return array_unique($configs, SORT_REGULAR);
+    }
+
+    /**
+     * @param $linkData
+     *
+     * @return array
+     */
+    protected function getLinks($linkData): array
+    {
+        $links = [];
+        if (\is_array($linkData)) {
+            if (\is_array($linkData[static::LINK])) {
+                $links = $linkData[static::LINK];
+            } elseif (\is_string($linkData[static::LINK])) {
+                $links = [$linkData[static::LINK]];
+            } elseif($this->isSimpleArray($linkData)) {
+                $links = $linkData;
+            }
+        } elseif (\is_string($linkData)) {
+            $links = [$linkData];
+        }
+        return $links;
+    }
+
+    /**
+     * @param string $target
+     * @param string $link
+     * @param array|string $linkData
+     *
+     * @throws LinkDirectoryError
+     * @throws InvalidArgumentException
+     * @return null|Symlink
+     */
+    private function processSymlink(string $target, string $link, $linkData)
+    {
+        if (!$link) {
+            throw new InvalidArgumentException('No link passed in config');
         }
 
         if ($this->fileSystem->isAbsolutePath($target)) {
@@ -144,43 +212,16 @@ class SymlinksFactory
     }
 
     /**
-     * @throws \SomeWork\Symlinks\InvalidArgumentException
-     * @return array
+     * @param array $linkData
+     * @return bool
      */
-    protected function getSymlinksData(): array
+    private function isSimpleArray(array $linkData): bool
     {
-        $extras = $this->event->getComposer()->getPackage()->getExtra();
-
-        if (!isset($extras[static::PACKAGE_NAME][static::SYMLINKS])) {
-            return [];
+        foreach ($linkData as $key => $data){
+            if(!\is_int($key)){
+                return false;
+            }
         }
-
-        $configs = $extras[static::PACKAGE_NAME][static::SYMLINKS];
-
-        if (!\is_array($configs)) {
-            throw new InvalidArgumentException(sprintf(
-                'The extra.%s.%s setting must be an array.',
-                static::PACKAGE_NAME,
-                static::SYMLINKS
-            ));
-        }
-
-        return array_unique($configs, SORT_REGULAR);
-    }
-
-    /**
-     * @param $linkData
-     *
-     * @return string
-     */
-    protected function getLink($linkData): string
-    {
-        $link = '';
-        if (\is_array($linkData)) {
-            $link = $linkData['link'] ?? '';
-        } elseif (\is_string($linkData)) {
-            $link = $linkData;
-        }
-        return $link;
+        return true;
     }
 }
