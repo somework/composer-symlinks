@@ -136,7 +136,7 @@ class SymlinksFactory
                 $links = $linkData[static::LINK];
             } elseif (\is_string($linkData[static::LINK])) {
                 $links = [$linkData[static::LINK]];
-            } elseif(isset($linkData[0])) {
+            } elseif($this->isSimpleArray($linkData)) {
                 $links = $linkData;
             }
         } elseif (\is_string($linkData)) {
@@ -145,7 +145,13 @@ class SymlinksFactory
         return $links;
     }
 
-    private function processSymlink(string $target, string $link, $linkData): ?Symlink
+    /**
+     * @param string $target
+     * @param string $link
+     * @param $linkData
+     * @return null|Symlink
+     */
+    private function processSymlink(string $target, string $link, $linkData)
     {
         if (!$link) {
             throw new InvalidArgumentException('No link passed in config');
@@ -198,5 +204,19 @@ class SymlinksFactory
             ->setLink($linkPath)
             ->setAbsolutePath($this->getConfig(static::ABSOLUTE_PATH, $linkData, false))
             ->setForceCreate($this->getConfig(static::FORCE_CREATE, $linkData, false));
+    }
+
+    /**
+     * @param array $linkData
+     * @return bool
+     */
+    private function isSimpleArray(array $linkData): bool
+    {
+        foreach ($linkData as $key => $data){
+            if(!\is_int($key)){
+                return false;
+            }
+        }
+        return true;
     }
 }
