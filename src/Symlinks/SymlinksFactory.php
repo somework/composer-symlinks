@@ -134,10 +134,10 @@ class SymlinksFactory
         if (\is_array($linkData)) {
             if (\is_array($linkData[static::LINK])) {
                 $links = $linkData[static::LINK];
-            } elseif (is_string($linkData[static::LINK])) {
-                $links = [$linkData[static::LINK]] ?? [];
-            } elseif(is_string($linkData)) {
-                $links = [$linkData];
+            } elseif (\is_string($linkData[static::LINK])) {
+                $links = [$linkData[static::LINK]];
+            } elseif(isset($linkData[0])) {
+                $links = $linkData;
             }
         } elseif (\is_string($linkData)) {
             $links = [$linkData];
