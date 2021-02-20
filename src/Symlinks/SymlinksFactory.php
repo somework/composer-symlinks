@@ -15,6 +15,7 @@ class SymlinksFactory
     const ABSOLUTE_PATH = 'absolute-path';
     const THROW_EXCEPTION = 'throw-exception';
     const FORCE_CREATE = 'force-create';
+    const LINK = 'link';
 
     /**
      * @var Filesystem
@@ -131,10 +132,12 @@ class SymlinksFactory
     {
         $links = [];
         if (\is_array($linkData)) {
-            if (\is_array($linkData['link'])) {
-                $links = $linkData['link'];
-            } else {
-                $links = [$linkData['link']] ?? [];
+            if (\is_array($linkData[static::LINK])) {
+                $links = $linkData[static::LINK];
+            } elseif (is_string($linkData[static::LINK])) {
+                $links = [$linkData[static::LINK]] ?? [];
+            } elseif(is_string($linkData)) {
+                $links = [$linkData];
             }
         } elseif (\is_string($linkData)) {
             $links = [$linkData];
