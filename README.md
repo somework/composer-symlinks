@@ -39,6 +39,11 @@ For personal configs `link` must be defined
                     "absolute-path": true,
                     "throw-exception": false
                 },
+                "common/web": [
+                    "web1",
+                    "web2",
+                    "web3"
+                ],
                 "common/local": {
                     "link": [
                         "web1/local",
