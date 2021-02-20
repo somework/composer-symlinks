@@ -131,10 +131,10 @@ class SymlinksFactory
     {
         $links = [];
         if (\is_array($linkData)) {
-            if (\is_array($linkData['links'])) {
-                $links = $linkData['links'];
+            if (\is_array($linkData['link'])) {
+                $links = $linkData['link'];
             } else {
-                $links = $linkData['link'] ?? [];
+                $links = [$linkData['link']] ?? [];
             }
         } elseif (\is_string($linkData)) {
             $links = [$linkData];

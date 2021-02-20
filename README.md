@@ -40,7 +40,7 @@ For personal configs `link` must be defined
                     "throw-exception": false
                 },
                 "common/local": {
-                    "links": [
+                    "link": [
                         "web1/local",
                         "web2/local",
                         "web3/local"
