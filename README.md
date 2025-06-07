@@ -53,6 +53,11 @@ For personal configs `link` must be defined
 
 DO NOT use --no-plugins for composer install or update
 
+### Dry run
+
+Set environment variable `SYMLINKS_DRY_RUN=1` to preview created links without
+modifying the filesystem.
+
 License
 -------
 

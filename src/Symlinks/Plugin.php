@@ -45,7 +45,8 @@ class Plugin implements PluginInterface
         return function (Event $event) {
             $fileSystem = new Filesystem();
             $factory = new SymlinksFactory($event, $fileSystem);
-            $processor = new SymlinksProcessor($fileSystem);
+            $dryRun = getenv('SYMLINKS_DRY_RUN') === '1' || getenv('SYMLINKS_DRY_RUN') === 'true';
+            $processor = new SymlinksProcessor($fileSystem, $dryRun);
 
             $symlinks = $factory->process();
             foreach ($symlinks as $symlink) {
@@ -56,7 +57,8 @@ class Plugin implements PluginInterface
                     $event
                         ->getIO()
                         ->write(sprintf(
-                            '  Symlinking <comment>%s</comment> to <comment>%s</comment>',
+                            '  %sSymlinking <comment>%s</comment> to <comment>%s</comment>',
+                            $dryRun ? '[DRY RUN] ' : '',
                             $symlink->getLink(),
                             $symlink->getTarget()
                         ));

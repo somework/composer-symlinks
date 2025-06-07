@@ -11,9 +11,20 @@ class SymlinksProcessor
      */
     private $filesystem;
 
-    public function __construct(Filesystem $filesystem)
+    /**
+     * @var bool
+     */
+    private $dryRun = false;
+
+    public function __construct(Filesystem $filesystem, bool $dryRun = false)
     {
         $this->filesystem = $filesystem;
+        $this->dryRun = $dryRun;
+    }
+
+    public function setDryRun(bool $dryRun): void
+    {
+        $this->dryRun = $dryRun;
     }
 
     /**
@@ -24,6 +35,13 @@ class SymlinksProcessor
      */
     public function processSymlink(Symlink $symlink): bool
     {
+        if ($this->dryRun) {
+            if ($this->isToUnlink($symlink->getLink()) && !$symlink->isForceCreate()) {
+                throw new LinkDirectoryError('Link ' . $symlink->getLink() . ' already exists');
+            }
+            return true;
+        }
+
         if ($symlink->isForceCreate() && $this->isToUnlink($symlink->getLink())) {
             try {
                 if (\is_dir($symlink->getLink())) {

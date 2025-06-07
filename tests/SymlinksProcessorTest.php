@@ -30,4 +30,25 @@ class SymlinksProcessorTest extends TestCase
         $this->assertTrue(is_link($link));
         $this->assertSame(realpath($target), realpath(readlink($link)));
     }
+
+    public function testDryRunDoesNotCreateLink(): void
+    {
+        $tmp = sys_get_temp_dir() . '/processor_' . uniqid();
+        mkdir($tmp);
+        $target = $tmp . '/target.txt';
+        file_put_contents($target, 'data');
+
+        $link = $tmp . '/link.txt';
+
+        $symlink = (new Symlink())
+            ->setTarget($target)
+            ->setLink($link)
+            ->setAbsolutePath(true);
+
+        $processor = new SymlinksProcessor(new Filesystem(), true);
+        $result = $processor->processSymlink($symlink);
+
+        $this->assertTrue($result);
+        $this->assertFalse(file_exists($link));
+    }
 }
