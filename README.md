@@ -19,10 +19,14 @@ Usage
 
 Create the symlinks definition adding a `somework/composer-symlinks` section inside the `extra` section of the composer.json file.
 
-Set `skip-missing-target` to true if we should not throw exception if target path doesn't exists  
-Set `absolute-path` to true if you want to create realpath symlinks  
-Set `throw-exception` to false if you dont want to break creating on some error while check symlinks  
-Set `force-create` to force unlink link if something already exists on link path    
+The behaviour of the plugin can be tuned via the following configuration keys:
+
+| Key | Default | Description |
+| --- | --- | --- |
+| `skip-missing-target` | `false` | Do not fail when the target does not exist. |
+| `absolute-path` | `false` | Create symlinks using the real path to the target. |
+| `throw-exception` | `true` | Throw an exception on errors instead of just printing the message. |
+| `force-create` | `false` | Remove any existing file or directory at the link path before creating the symlink. |
 
 You can set personal configs for any symlink.  
 For personal configs `link` must be defined  
@@ -57,6 +61,33 @@ DO NOT use --no-plugins for composer install or update
 
 Set environment variable `SYMLINKS_DRY_RUN=1` to preview created links without
 modifying the filesystem.
+
+Example output:
+
+```bash
+$ SYMLINKS_DRY_RUN=1 composer install --no-interaction
+  [DRY RUN] Symlinking /tmp/sample/linked.txt to /tmp/sample/source/file.txt
+```
+
+### Typical error messages
+
+| Message | Meaning |
+|---------|---------|
+| `No link passed in config` | The `link` option was missing for a symlink definition. |
+| `No target passed in config` | The key of the `symlinks` map was empty. |
+| `Invalid symlink target path` | The target path was absolute but should be relative. |
+| `Invalid symlink link path` | The link path was absolute but should be relative. |
+| `The target path ... does not exists` | The target file or directory was not found. |
+| `Link ... already exists` | A file/directory already occupies the link path. |
+| `Cant unlink ...` | The plugin failed to remove a file when using `force-create`. |
+
+### Windows compatibility
+
+On Windows, creating symlinks requires either Administrator privileges or that
+the system is running in Developer Mode. The plugin itself works, but the
+underlying operating system may refuse to create a link if permissions are
+insufficient. Additionally, relative symlinks use Unix-style `/` separators
+internally which Windows resolves correctly.
 
 License
 -------
