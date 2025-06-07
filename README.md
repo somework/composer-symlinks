@@ -92,10 +92,10 @@ internally which Windows resolves correctly.
 License
 -------
 
-This component is under the MIT license. See the complete license in the [LICENSE] file.
+This component is under the MIT license. See the complete license in the [LICENSE](LICENSE) file.
 
 
 Reporting an issue or a feature request
 ---------------------------------------
 
-Issues and feature requests are tracked in the [Github issue tracker].
+Issues and feature requests are tracked in the [Github issue tracker](https://github.com/somework/composer-symlinks/issues).
