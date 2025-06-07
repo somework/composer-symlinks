@@ -6,17 +6,17 @@ $finder
     ])
     ->files()
     ->name('*.php');
-return \PhpCsFixer\Config::create()
+return (new PhpCsFixer\Config())
     ->setUsingCache(true)
     ->setRiskyAllowed(true)
     ->setRules([
         '@PSR2'                                     => true,
-        'psr0'                                      => true,
+        'psr_autoloading'                            => true,
         'align_multiline_comment'                   => true,
         'dir_constant'                              => true,
         'linebreak_after_opening_tag'               => true,
         'modernize_types_casting'                   => true,
-        'no_multiline_whitespace_before_semicolons' => true,
+        'multiline_whitespace_before_semicolons'     => true,
         'no_null_property_initialization'           => true,
         'no_php4_constructor'                       => true,
         'no_superfluous_elseif'                     => true,
@@ -33,7 +33,7 @@ return \PhpCsFixer\Config::create()
         'phpdoc_types_order'                        => true,
         'single_quote'                              => true,
         'standardize_not_equals'                    => true,
-        'trailing_comma_in_multiline_array'         => true,
+        'trailing_comma_in_multiline'               => ['elements' => ['arrays']],
         'include'                                   => true,
         'array_syntax'                              => [
             'syntax' => 'short',
