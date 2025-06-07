@@ -10,7 +10,17 @@ class SymlinksFactory
     const PACKAGE_NAME = 'somework/composer-symlinks';
 
     const SYMLINKS = 'symlinks';
+    /**
+     * Config key for skipping symlink creation when the target is missing.
+     *
+     * @deprecated use SKIP_MISSING_TARGET instead
+     */
     const SKIP_MISSED_TARGET = 'skip-missing-target';
+
+    /**
+     * Config key for skipping symlink creation when the target is missing.
+     */
+    const SKIP_MISSING_TARGET = 'skip-missing-target';
     const ABSOLUTE_PATH = 'absolute-path';
     const THROW_EXCEPTION = 'throw-exception';
     const FORCE_CREATE = 'force-create';
@@ -111,7 +121,10 @@ class SymlinksFactory
         $linkPath = $currentDirectory . DIRECTORY_SEPARATOR . $link;
 
         if (!is_dir($targetPath) && !is_file($targetPath)) {
-            if ($this->getConfig(static::SKIP_MISSED_TARGET, $link)) {
+            if (
+                $this->getConfig(static::SKIP_MISSING_TARGET, $linkData) ||
+                $this->getConfig(static::SKIP_MISSED_TARGET, $linkData)
+            ) {
                 return null;
             }
             throw new InvalidArgumentException(
@@ -125,7 +138,10 @@ class SymlinksFactory
             throw new LinkDirectoryError($exception->getMessage(), $exception->getCode(), $exception);
         }
 
-        if (is_link($linkPath) && realpath(readlink($linkPath)) === $targetPath) {
+        if (
+            is_link($linkPath) &&
+            realpath(dirname($linkPath) . DIRECTORY_SEPARATOR . readlink($linkPath)) === $targetPath
+        ) {
             $this->event->getIO()->write(
                 sprintf(
                     '  Symlink <comment>%s</comment> to <comment>%s</comment> already created',

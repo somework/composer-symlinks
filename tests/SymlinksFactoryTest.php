@@ -48,4 +48,69 @@ class SymlinksFactoryTest extends TestCase
 
         chdir($cwd);
     }
+
+    public function testProcessSkipsMissingTargetPerLink(): void
+    {
+        $tmp = sys_get_temp_dir() . '/factory_' . uniqid();
+        mkdir($tmp);
+        $cwd = getcwd();
+        chdir($tmp);
+
+        $composer = new Composer();
+        $dispatcher = new EventDispatcher($composer, new NullIO());
+        $composer->setEventDispatcher($dispatcher);
+        $package = new RootPackage('test/test', '1.0.0', '1.0.0');
+        $package->setExtra([
+            'somework/composer-symlinks' => [
+                'symlinks' => [
+                    'missing/file.txt' => [
+                        'link' => 'link.txt',
+                        'skip-missing-target' => true
+                    ]
+                ]
+            ]
+        ]);
+        $composer->setPackage($package);
+
+        $event = new Event('post-install-cmd', $composer, new NullIO());
+        $factory = new SymlinksFactory($event, new Filesystem());
+        $symlinks = $factory->process();
+
+        $this->assertCount(0, $symlinks);
+
+        chdir($cwd);
+    }
+
+    public function testExistingRelativeSymlinkIsNotProcessed(): void
+    {
+        $tmp = sys_get_temp_dir() . '/factory_' . uniqid();
+        mkdir($tmp);
+        mkdir($tmp . '/target', 0777, true);
+        mkdir($tmp . '/dir', 0777, true);
+        file_put_contents($tmp . '/target/file.txt', 'content');
+        symlink('../target/file.txt', $tmp . '/dir/link.txt');
+        $cwd = getcwd();
+        chdir($tmp);
+
+        $composer = new Composer();
+        $dispatcher = new EventDispatcher($composer, new NullIO());
+        $composer->setEventDispatcher($dispatcher);
+        $package = new RootPackage('test/test', '1.0.0', '1.0.0');
+        $package->setExtra([
+            'somework/composer-symlinks' => [
+                'symlinks' => [
+                    'target/file.txt' => 'dir/link.txt'
+                ]
+            ]
+        ]);
+        $composer->setPackage($package);
+
+        $event = new Event('post-install-cmd', $composer, new NullIO());
+        $factory = new SymlinksFactory($event, new Filesystem());
+        $symlinks = $factory->process();
+
+        $this->assertCount(0, $symlinks);
+
+        chdir($cwd);
+    }
 }
