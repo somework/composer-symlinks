@@ -74,7 +74,7 @@ class ComposerIntegrationTest extends TestCase
             realpath($tmp . '/sourceA/fileA.txt'),
             realpath($tmp . '/' . readlink($tmp . '/linkA.txt'))
         );
-        $this->assertFalse(str_starts_with(readlink($tmp . '/linkA.txt'), '/'));
+        $this->assertNotSame('/', substr(readlink($tmp . '/linkA.txt'), 0, 1));
 
         $this->assertTrue(is_link($tmp . '/linkB.txt'));
         $this->assertSame(
