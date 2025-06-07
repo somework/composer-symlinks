@@ -1,7 +1,7 @@
 ComposerSymlinks
 =====================
 
-Its provide a simple Composer script to symlink paths.
+Its provide a simple Composer script to symlink paths. Compatible with Composer v2.
 
 Installation
 ------------

@@ -22,11 +22,19 @@ class Plugin implements PluginInterface
      * @param Composer    $composer
      * @param IOInterface $io
      */
-    public function activate(Composer $composer, IOInterface $io)
+    public function activate(Composer $composer, IOInterface $io): void
     {
         $eventDispatcher = $composer->getEventDispatcher();
         $eventDispatcher->addListener(ScriptEvents::POST_INSTALL_CMD, $this->createLinks());
         $eventDispatcher->addListener(ScriptEvents::POST_UPDATE_CMD, $this->createLinks());
+    }
+
+    public function deactivate(Composer $composer, IOInterface $io): void
+    {
+    }
+
+    public function uninstall(Composer $composer, IOInterface $io): void
+    {
     }
 
     /**
