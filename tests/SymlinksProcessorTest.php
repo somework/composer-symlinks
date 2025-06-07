@@ -51,4 +51,57 @@ class SymlinksProcessorTest extends TestCase
         $this->assertTrue($result);
         $this->assertFalse(file_exists($link));
     }
+
+    public function testForceCreateReplacesExistingLink(): void
+    {
+        $tmp = sys_get_temp_dir() . '/processor_' . uniqid();
+        mkdir($tmp);
+        $target = $tmp . '/target.txt';
+        file_put_contents($target, 'new');
+
+        $link = $tmp . '/link.txt';
+        file_put_contents($link, 'old');
+
+        $symlink = (new Symlink())
+            ->setTarget($target)
+            ->setLink($link)
+            ->setAbsolutePath(true)
+            ->setForceCreate(true);
+
+        $filesystem = $this->createMock(Filesystem::class);
+        $filesystem->expects($this->once())
+            ->method('remove')
+            ->with($link)
+            ->willReturnCallback(function (string $path) {
+                return unlink($path);
+            });
+
+        $processor = new SymlinksProcessor($filesystem);
+        $result = $processor->processSymlink($symlink);
+
+        $this->assertTrue($result);
+        $this->assertTrue(is_link($link));
+        $this->assertSame(realpath($target), realpath(readlink($link)));
+    }
+
+    public function testThrowsErrorWhenLinkExists(): void
+    {
+        $this->expectException(\SomeWork\Symlinks\LinkDirectoryError::class);
+
+        $tmp = sys_get_temp_dir() . '/processor_' . uniqid();
+        mkdir($tmp);
+        $target = $tmp . '/target.txt';
+        file_put_contents($target, 'data');
+
+        $link = $tmp . '/link.txt';
+        file_put_contents($link, 'old');
+
+        $symlink = (new Symlink())
+            ->setTarget($target)
+            ->setLink($link)
+            ->setAbsolutePath(true);
+
+        $processor = new SymlinksProcessor(new Filesystem());
+        $processor->processSymlink($symlink);
+    }
 }

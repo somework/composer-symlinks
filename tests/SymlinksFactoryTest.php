@@ -113,4 +113,96 @@ class SymlinksFactoryTest extends TestCase
 
         chdir($cwd);
     }
+
+    public function testProcessThrowsExceptionForEmptyLink(): void
+    {
+        $composer = new Composer();
+        $dispatcher = new EventDispatcher($composer, new NullIO());
+        $composer->setEventDispatcher($dispatcher);
+        $package = new RootPackage('test/test', '1.0.0', '1.0.0');
+        $package->setExtra([
+            'somework/composer-symlinks' => [
+                'symlinks' => [
+                    'foo' => ''
+                ]
+            ]
+        ]);
+        $composer->setPackage($package);
+
+        $event = new Event('post-install-cmd', $composer, new NullIO());
+        $factory = new SymlinksFactory($event, new Filesystem());
+
+        $this->expectException(\SomeWork\Symlinks\InvalidArgumentException::class);
+        $this->expectExceptionMessage('No link passed in config');
+        $factory->process();
+    }
+
+    public function testProcessThrowsExceptionForEmptyTarget(): void
+    {
+        $composer = new Composer();
+        $dispatcher = new EventDispatcher($composer, new NullIO());
+        $composer->setEventDispatcher($dispatcher);
+        $package = new RootPackage('test/test', '1.0.0', '1.0.0');
+        $package->setExtra([
+            'somework/composer-symlinks' => [
+                'symlinks' => [
+                    '' => 'link.txt'
+                ]
+            ]
+        ]);
+        $composer->setPackage($package);
+
+        $event = new Event('post-install-cmd', $composer, new NullIO());
+        $factory = new SymlinksFactory($event, new Filesystem());
+
+        $this->expectException(\SomeWork\Symlinks\InvalidArgumentException::class);
+        $this->expectExceptionMessage('No target passed in config');
+        $factory->process();
+    }
+
+    public function testProcessThrowsExceptionForAbsoluteTarget(): void
+    {
+        $composer = new Composer();
+        $dispatcher = new EventDispatcher($composer, new NullIO());
+        $composer->setEventDispatcher($dispatcher);
+        $package = new RootPackage('test/test', '1.0.0', '1.0.0');
+        $package->setExtra([
+            'somework/composer-symlinks' => [
+                'symlinks' => [
+                    '/abs/target.txt' => 'link.txt'
+                ]
+            ]
+        ]);
+        $composer->setPackage($package);
+
+        $event = new Event('post-install-cmd', $composer, new NullIO());
+        $factory = new SymlinksFactory($event, new Filesystem());
+
+        $this->expectException(\SomeWork\Symlinks\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Invalid symlink target path');
+        $factory->process();
+    }
+
+    public function testProcessThrowsExceptionForAbsoluteLink(): void
+    {
+        $composer = new Composer();
+        $dispatcher = new EventDispatcher($composer, new NullIO());
+        $composer->setEventDispatcher($dispatcher);
+        $package = new RootPackage('test/test', '1.0.0', '1.0.0');
+        $package->setExtra([
+            'somework/composer-symlinks' => [
+                'symlinks' => [
+                    'target/file.txt' => '/abs/link.txt'
+                ]
+            ]
+        ]);
+        $composer->setPackage($package);
+
+        $event = new Event('post-install-cmd', $composer, new NullIO());
+        $factory = new SymlinksFactory($event, new Filesystem());
+
+        $this->expectException(\SomeWork\Symlinks\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Invalid symlink link path');
+        $factory->process();
+    }
 }
