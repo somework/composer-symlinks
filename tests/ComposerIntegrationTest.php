@@ -90,4 +90,51 @@ class ComposerIntegrationTest extends TestCase
             realpath($tmp . '/' . readlink($tmp . '/replaceLink.txt'))
         );
     }
+
+    public function testDryRunViaComposerDoesNotCreateLinks(): void
+    {
+        $tmp = sys_get_temp_dir() . '/project_' . uniqid();
+        mkdir($tmp);
+
+        // prepare sources
+        mkdir($tmp . '/sourceA', 0777, true);
+        file_put_contents($tmp . '/sourceA/fileA.txt', 'A');
+
+        $pluginPath = realpath(__DIR__ . '/..');
+
+        $composerData = [
+            'name' => 'test/project',
+            'minimum-stability' => 'dev',
+            'require' => [
+                'somework/composer-symlinks' => '*'
+            ],
+            'repositories' => [
+                ['type' => 'path', 'url' => $pluginPath, 'options' => ['symlink' => false]]
+            ],
+            'config' => [
+                'allow-plugins' => [
+                    'somework/composer-symlinks' => true
+                ]
+            ],
+            'extra' => [
+                'somework/composer-symlinks' => [
+                    'symlinks' => [
+                        'sourceA/fileA.txt' => 'linkA.txt'
+                    ]
+                ]
+            ]
+        ];
+        file_put_contents($tmp . '/composer.json', json_encode($composerData, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+
+        $cwd = getcwd();
+        chdir($tmp);
+        putenv('SYMLINKS_DRY_RUN=1');
+        exec('composer install --no-interaction --no-ansi 2>&1', $output, $code);
+        putenv('SYMLINKS_DRY_RUN');
+        chdir($cwd);
+
+        $this->assertSame(0, $code, implode("\n", $output));
+
+        $this->assertFalse(file_exists($tmp . '/linkA.txt'));
+    }
 }
