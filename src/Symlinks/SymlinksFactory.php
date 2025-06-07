@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 
 namespace SomeWork\Symlinks;
 
@@ -19,15 +20,8 @@ class SymlinksFactory
     const THROW_EXCEPTION = 'throw-exception';
     const FORCE_CREATE = 'force-create';
 
-    /**
-     * @var Filesystem
-     */
-    protected $fileSystem;
-
-    /**
-     * @var Event
-     */
-    protected $event;
+    protected Filesystem $fileSystem;
+    protected Event $event;
 
     public function __construct(Event $event, Filesystem $filesystem)
     {
@@ -79,11 +73,11 @@ class SymlinksFactory
     }
 
     /**
-     * @param string       $target
      * @param array|string $linkData
      *
-     * @throws \SomeWork\Symlinks\LinkDirectoryError
-     * @throws \SomeWork\Symlinks\InvalidArgumentException
+     * @throws LinkDirectoryError
+     * @throws InvalidArgumentException
+     *
      * @return null|Symlink
      */
     protected function processSymlink(string $target, $linkData)
@@ -114,7 +108,7 @@ class SymlinksFactory
         $targetPath = realpath($currentDirectory . DIRECTORY_SEPARATOR . $target);
         $linkPath = $currentDirectory . DIRECTORY_SEPARATOR . $link;
 
-        if (!is_dir($targetPath) && !is_file($targetPath)) {
+        if ($targetPath === false || (!is_dir($targetPath) && !is_file($targetPath))) {
             if ($this->getConfig(static::SKIP_MISSING_TARGET, $linkData)) {
                 return null;
             }
@@ -151,8 +145,7 @@ class SymlinksFactory
     }
 
     /**
-     * @throws \SomeWork\Symlinks\InvalidArgumentException
-     * @return array
+     * @throws InvalidArgumentException
      */
     protected function getSymlinksData(): array
     {
@@ -175,11 +168,6 @@ class SymlinksFactory
         return array_unique($configs, SORT_REGULAR);
     }
 
-    /**
-     * @param $linkData
-     *
-     * @return string
-     */
     protected function getLink($linkData): string
     {
         $link = '';

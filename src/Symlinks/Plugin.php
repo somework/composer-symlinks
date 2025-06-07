@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 
 namespace SomeWork\Symlinks;
 
@@ -9,19 +10,8 @@ use Composer\Script\Event;
 use Composer\Script\ScriptEvents;
 use Composer\Util\Filesystem;
 
-/**
- * Class Plugin
- *
- * @author  Dmitry Panychev <thor_work@yahoo.com>
- *
- * @package SomeWork\Composer
- */
 class Plugin implements PluginInterface
 {
-    /**
-     * @param Composer    $composer
-     * @param IOInterface $io
-     */
     public function activate(Composer $composer, IOInterface $io): void
     {
         $eventDispatcher = $composer->getEventDispatcher();
@@ -37,9 +27,6 @@ class Plugin implements PluginInterface
     {
     }
 
-    /**
-     * @return callable
-     */
     protected function createLinks(): callable
     {
         return function (Event $event) {
