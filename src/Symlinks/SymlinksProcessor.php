@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 
 namespace SomeWork\Symlinks;
 
@@ -6,15 +7,8 @@ use Composer\Util\Filesystem;
 
 class SymlinksProcessor
 {
-    /**
-     * @var Filesystem
-     */
-    private $filesystem;
-
-    /**
-     * @var bool
-     */
-    private $dryRun = false;
+    private Filesystem $filesystem;
+    private bool $dryRun = false;
 
     public function __construct(Filesystem $filesystem, bool $dryRun = false)
     {
@@ -28,10 +22,7 @@ class SymlinksProcessor
     }
 
     /**
-     * @param Symlink $symlink
-     *
-     * @throws \SomeWork\Symlinks\RuntimeException
-     * @return bool
+     * @throws RuntimeException
      */
     public function processSymlink(Symlink $symlink): bool
     {
