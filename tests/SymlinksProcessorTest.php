@@ -104,4 +104,47 @@ class SymlinksProcessorTest extends TestCase
         $processor = new SymlinksProcessor(new Filesystem());
         $processor->processSymlink($symlink);
     }
+
+    public function testDryRunThrowsErrorWhenLinkExists(): void
+    {
+        $this->expectException(\SomeWork\Symlinks\LinkDirectoryError::class);
+
+        $tmp = sys_get_temp_dir() . '/processor_' . uniqid();
+        mkdir($tmp);
+        $target = $tmp . '/target.txt';
+        file_put_contents($target, 'data');
+
+        $link = $tmp . '/link.txt';
+        file_put_contents($link, 'old');
+
+        $symlink = (new Symlink())
+            ->setTarget($target)
+            ->setLink($link)
+            ->setAbsolutePath(true);
+
+        $processor = new SymlinksProcessor(new Filesystem(), true);
+        $processor->processSymlink($symlink);
+    }
+
+    public function testProcessSymlinkCreatesRelativeLink(): void
+    {
+        $tmp = sys_get_temp_dir() . '/processor_' . uniqid();
+        mkdir($tmp);
+        mkdir($tmp . '/dir', 0777, true);
+        $target = $tmp . '/target.txt';
+        file_put_contents($target, 'data');
+
+        $link = $tmp . '/dir/link.txt';
+
+        $symlink = (new Symlink())
+            ->setTarget($target)
+            ->setLink($link);
+
+        $processor = new SymlinksProcessor(new Filesystem());
+        $result = $processor->processSymlink($symlink);
+
+        $this->assertTrue($result);
+        $this->assertTrue(is_link($link));
+        $this->assertSame(realpath($target), realpath(dirname($link) . '/' . readlink($link)));
+    }
 }
