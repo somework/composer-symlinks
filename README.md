@@ -27,6 +27,7 @@ The behaviour of the plugin can be tuned via the following configuration keys:
 | `absolute-path` | `false` | Create symlinks using the real path to the target. |
 | `throw-exception` | `true` | Throw an exception on errors instead of just printing the message. |
 | `force-create` | `false` | Remove any existing file or directory at the link path before creating the symlink. |
+| `cleanup` | `false` | Remove symlinks that were created previously but are no longer present in the configuration. |
 
 You can set personal configs for any symlink.
 For personal configs `link` must be defined
@@ -47,11 +48,18 @@ For personal configs `link` must be defined
             "force-create": false,
             "skip-missing-target": false,
             "absolute-path": false,
-            "throw-exception": true
+            "throw-exception": true,
+            "cleanup": true
         }
     }
 }
 ```
+
+When `cleanup` is enabled the plugin keeps a registry of every symlink it
+created in the file `vendor/composer-symlinks-state.json`. On the next run the
+registry is compared with the current configuration: entries missing from the
+configuration are deleted from both the registry and the filesystem. The file
+is recreated automatically and can safely be ignored by VCS.
 
 ### Placeholder syntax
 
@@ -102,6 +110,14 @@ Example output:
 $ SYMLINKS_DRY_RUN=1 composer install --no-interaction
   [DRY RUN] Symlinking /tmp/sample/linked.txt to /tmp/sample/source/file.txt
 ```
+
+### Uninstalling
+
+Running `composer remove somework/composer-symlinks` will trigger the plugin's
+`uninstall()` hook. The hook reads the registry file and removes every stored
+symlink from the filesystem before deleting the registry itself. This ensures
+that no links created by the plugin are left behind when the package is
+removed.
 
 ### Typical error messages
 

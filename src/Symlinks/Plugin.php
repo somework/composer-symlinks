@@ -36,6 +36,14 @@ class Plugin implements PluginInterface, Capable
 
     public function uninstall(Composer $composer, IOInterface $io): void
     {
+        $fileSystem = new Filesystem();
+        $vendorDir = $this->resolveVendorDir($composer, $fileSystem);
+        if ($vendorDir === null) {
+            return;
+        }
+
+        $registry = new SymlinksRegistry($fileSystem, $vendorDir);
+        $registry->removeAll();
     }
 
     protected function createLinks(): callable
@@ -46,7 +54,52 @@ class Plugin implements PluginInterface, Capable
             $dryRun = getenv('SYMLINKS_DRY_RUN') === '1' || getenv('SYMLINKS_DRY_RUN') === 'true';
             $processor = new SymlinksProcessor($fileSystem, $dryRun);
 
-            $this->runSymlinks($factory, $processor, $event->getIO(), $dryRun);
+            $processedSymlinks = $this->runSymlinks($factory, $processor, $event->getIO(), $dryRun);
+
+            if ($dryRun) {
+                return;
+            }
+
+            $vendorDir = $factory->getVendorDirPath();
+            if ($vendorDir === null) {
+                return;
+            }
+
+            $registry = new SymlinksRegistry($fileSystem, $vendorDir);
+            $registry->sync($factory->getConfiguredSymlinks(), $processedSymlinks, $factory->isCleanupEnabled());
         };
+    }
+
+    private function resolveVendorDir(Composer $composer, Filesystem $filesystem): ?string
+    {
+        try {
+            $config = $composer->getConfig();
+        } catch (\TypeError $exception) {
+            $config = null;
+        }
+
+        $vendorDir = null;
+        if ($config !== null) {
+            $vendorDir = $config->get('vendor-dir');
+        }
+
+        if (!$vendorDir) {
+            $projectDir = getcwd();
+            if ($projectDir === false) {
+                return null;
+            }
+            $vendorDir = $projectDir . DIRECTORY_SEPARATOR . 'vendor';
+        }
+
+        if (!$filesystem->isAbsolutePath($vendorDir)) {
+            $projectDir = getcwd();
+            if ($projectDir === false) {
+                return null;
+            }
+            $combined = $projectDir . DIRECTORY_SEPARATOR . $vendorDir;
+            $vendorDir = realpath($combined) ?: $combined;
+        }
+
+        return $vendorDir;
     }
 }
