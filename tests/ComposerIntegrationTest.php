@@ -137,4 +137,76 @@ class ComposerIntegrationTest extends TestCase
 
         $this->assertFalse(file_exists($tmp . '/linkA.txt'));
     }
+
+    public function testCleanupRemovesUnusedSymlinks(): void
+    {
+        $tmp = sys_get_temp_dir() . '/project_' . uniqid();
+        mkdir($tmp);
+
+        mkdir($tmp . '/sourceA', 0777, true);
+        file_put_contents($tmp . '/sourceA/fileA.txt', 'A');
+        mkdir($tmp . '/sourceB', 0777, true);
+        file_put_contents($tmp . '/sourceB/fileB.txt', 'B');
+
+        $pluginPath = realpath(__DIR__ . '/..');
+
+        $composerData = [
+            'name' => 'test/project',
+            'minimum-stability' => 'dev',
+            'require' => [
+                'somework/composer-symlinks' => '*'
+            ],
+            'repositories' => [
+                ['type' => 'path', 'url' => $pluginPath, 'options' => ['symlink' => false]]
+            ],
+            'config' => [
+                'allow-plugins' => [
+                    'somework/composer-symlinks' => true
+                ]
+            ],
+            'extra' => [
+                'somework/composer-symlinks' => [
+                    'cleanup' => true,
+                    'symlinks' => [
+                        'sourceA/fileA.txt' => 'linkA.txt',
+                        'sourceB/fileB.txt' => 'linkB.txt'
+                    ]
+                ]
+            ]
+        ];
+        file_put_contents($tmp . '/composer.json', json_encode($composerData, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+
+        $cwd = getcwd();
+        chdir($tmp);
+        exec('composer install --no-interaction --no-ansi 2>&1', $output, $code);
+        chdir($cwd);
+
+        $this->assertSame(0, $code, implode("\n", $output));
+        $this->assertTrue(is_link($tmp . '/linkA.txt'));
+        $this->assertTrue(is_link($tmp . '/linkB.txt'));
+
+        $registryPath = $tmp . '/vendor/composer-symlinks-state.json';
+        $this->assertFileExists($registryPath);
+        $registry = json_decode((string)file_get_contents($registryPath), true);
+        $this->assertIsArray($registry);
+        $this->assertArrayHasKey($tmp . '/linkA.txt', $registry);
+        $this->assertArrayHasKey($tmp . '/linkB.txt', $registry);
+
+        unset($composerData['extra']['somework/composer-symlinks']['symlinks']['sourceB/fileB.txt']);
+        file_put_contents($tmp . '/composer.json', json_encode($composerData, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+
+        chdir($tmp);
+        $output = [];
+        exec('composer update --no-interaction --no-ansi 2>&1', $output, $code);
+        chdir($cwd);
+
+        $this->assertSame(0, $code, implode("\n", $output));
+        $this->assertTrue(is_link($tmp . '/linkA.txt'));
+        $this->assertFalse(file_exists($tmp . '/linkB.txt'));
+
+        $registry = json_decode((string)file_get_contents($registryPath), true);
+        $this->assertIsArray($registry);
+        $this->assertArrayHasKey($tmp . '/linkA.txt', $registry);
+        $this->assertArrayNotHasKey($tmp . '/linkB.txt', $registry);
+    }
 }

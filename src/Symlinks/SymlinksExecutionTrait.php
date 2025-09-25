@@ -7,18 +7,24 @@ use Composer\IO\IOInterface;
 
 trait SymlinksExecutionTrait
 {
+    /**
+     * @return Symlink[]
+     */
     private function runSymlinks(
         SymlinksFactory $factory,
         SymlinksProcessor $processor,
         IOInterface $io,
         bool $dryRun
-    ): void {
+    ): array {
         $symlinks = $factory->process();
+        $processed = [];
         foreach ($symlinks as $symlink) {
             try {
                 if (!$processor->processSymlink($symlink)) {
                     throw new RuntimeException('Unknown error');
                 }
+
+                $processed[] = $symlink;
 
                 $io->write(sprintf(
                     '  %sSymlinking <comment>%s</comment> to <comment>%s</comment>',
@@ -42,5 +48,6 @@ trait SymlinksExecutionTrait
                 ));
             }
         }
+        return $processed;
     }
 }

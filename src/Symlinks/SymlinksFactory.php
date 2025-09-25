@@ -22,6 +22,11 @@ class SymlinksFactory
 
     protected Filesystem $fileSystem;
     protected Event $event;
+    /**
+     * @var array<string, string>
+     */
+    private array $configuredSymlinks = [];
+    private ?string $vendorDir = null;
 
     public function __construct(Event $event, Filesystem $filesystem)
     {
@@ -36,6 +41,7 @@ class SymlinksFactory
      */
     public function process(): array
     {
+        $this->configuredSymlinks = [];
         $symlinksData = $this->getSymlinksData();
 
         $symlinks = [];
@@ -142,6 +148,7 @@ class SymlinksFactory
             is_link($linkPath) &&
             realpath(dirname($linkPath) . DIRECTORY_SEPARATOR . readlink($linkPath)) === $targetPath
         ) {
+            $this->registerConfiguredSymlink($linkPath, $targetPath);
             $this->event->getIO()->write(
                 sprintf(
                     '  Symlink <comment>%s</comment> to <comment>%s</comment> already created',
@@ -152,11 +159,15 @@ class SymlinksFactory
             return null;
         }
 
-        return (new Symlink())
+        $symlink = (new Symlink())
             ->setTarget($targetPath)
             ->setLink($linkPath)
             ->setAbsolutePath($this->getConfig(static::ABSOLUTE_PATH, $linkData, false))
             ->setForceCreate($this->getConfig(static::FORCE_CREATE, $linkData, false));
+
+        $this->registerConfiguredSymlink($linkPath, $targetPath);
+
+        return $symlink;
     }
 
     /**
@@ -245,7 +256,36 @@ class SymlinksFactory
         return $path === false ? $cwd : $path;
     }
 
+    public function getVendorDirPath(): ?string
+    {
+        if ($this->vendorDir === null) {
+            $this->vendorDir = $this->resolveVendorDir();
+        }
+
+        return $this->vendorDir;
+    }
+
+    public function getConfiguredSymlinks(): array
+    {
+        return $this->configuredSymlinks;
+    }
+
+    public function isCleanupEnabled(): bool
+    {
+        return $this->getConfig('cleanup', null, false);
+    }
+
+    private function registerConfiguredSymlink(string $link, string $target): void
+    {
+        $this->configuredSymlinks[$link] = $target;
+    }
+
     private function getVendorDir(): ?string
+    {
+        return $this->getVendorDirPath();
+    }
+
+    private function resolveVendorDir(): ?string
     {
         $composer = $this->event->getComposer();
         $vendorDir = null;
