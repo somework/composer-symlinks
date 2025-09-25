@@ -8,20 +8,20 @@ class ComposerIntegrationTest extends TestCase
 {
     public function testPackageCreatesSymlinksViaComposer(): void
     {
-        $tmp = sys_get_temp_dir() . '/project_' . uniqid();
+        $tmp = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'project_' . uniqid();
         mkdir($tmp);
 
         // prepare sources
-        mkdir($tmp . '/sourceA', 0777, true);
-        file_put_contents($tmp . '/sourceA/fileA.txt', 'A');
-        mkdir($tmp . '/sourceB', 0777, true);
-        file_put_contents($tmp . '/sourceB/fileB.txt', 'B');
-        mkdir($tmp . '/sourceC', 0777, true);
-        file_put_contents($tmp . '/sourceC/fileC.txt', 'C');
-        mkdir($tmp . '/missing', 0777, true);
+        mkdir($tmp . DIRECTORY_SEPARATOR . 'sourceA', 0777, true);
+        file_put_contents($tmp . DIRECTORY_SEPARATOR . 'sourceA' . DIRECTORY_SEPARATOR . 'fileA.txt', 'A');
+        mkdir($tmp . DIRECTORY_SEPARATOR . 'sourceB', 0777, true);
+        file_put_contents($tmp . DIRECTORY_SEPARATOR . 'sourceB' . DIRECTORY_SEPARATOR . 'fileB.txt', 'B');
+        mkdir($tmp . DIRECTORY_SEPARATOR . 'sourceC', 0777, true);
+        file_put_contents($tmp . DIRECTORY_SEPARATOR . 'sourceC' . DIRECTORY_SEPARATOR . 'fileC.txt', 'C');
+        mkdir($tmp . DIRECTORY_SEPARATOR . 'missing', 0777, true);
 
         // existing file to be replaced
-        file_put_contents($tmp . '/replaceLink.txt', 'old');
+        file_put_contents($tmp . DIRECTORY_SEPARATOR . 'replaceLink.txt', 'old');
 
         $pluginPath = realpath(__DIR__ . '/..');
 
@@ -60,7 +60,7 @@ class ComposerIntegrationTest extends TestCase
                 ]
             ]
         ];
-        file_put_contents($tmp . '/composer.json', json_encode($composerData, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+        file_put_contents($tmp . DIRECTORY_SEPARATOR . 'composer.json', json_encode($composerData, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
 
         $cwd = getcwd();
         chdir($tmp);
@@ -69,36 +69,41 @@ class ComposerIntegrationTest extends TestCase
 
         $this->assertSame(0, $code, implode("\n", $output));
 
-        $this->assertTrue(is_link($tmp . '/linkA.txt'));
+        $linkA = $tmp . DIRECTORY_SEPARATOR . 'linkA.txt';
+        $this->assertTrue(is_link($linkA));
         $this->assertSame(
-            realpath($tmp . '/sourceA/fileA.txt'),
-            realpath($tmp . '/' . readlink($tmp . '/linkA.txt'))
+            realpath($tmp . DIRECTORY_SEPARATOR . 'sourceA' . DIRECTORY_SEPARATOR . 'fileA.txt'),
+            $this->resolveLinkTarget($linkA, $tmp)
         );
-        $this->assertNotSame('/', substr(readlink($tmp . '/linkA.txt'), 0, 1));
+        $linkATarget = readlink($linkA);
+        $this->assertNotFalse($linkATarget);
+        $this->assertNotSame('/', substr($linkATarget, 0, 1));
 
-        $this->assertTrue(is_link($tmp . '/linkB.txt'));
+        $linkB = $tmp . DIRECTORY_SEPARATOR . 'linkB.txt';
+        $this->assertTrue(is_link($linkB));
         $this->assertSame(
-            realpath($tmp . '/sourceB/fileB.txt'),
-            readlink($tmp . '/linkB.txt')
+            realpath($tmp . DIRECTORY_SEPARATOR . 'sourceB' . DIRECTORY_SEPARATOR . 'fileB.txt'),
+            $this->resolveLinkTarget($linkB, $tmp)
         );
 
-        $this->assertFalse(file_exists($tmp . '/missingLink.txt'));
+        $this->assertFalse(file_exists($tmp . DIRECTORY_SEPARATOR . 'missingLink.txt'));
 
-        $this->assertTrue(is_link($tmp . '/replaceLink.txt'));
+        $replaceLink = $tmp . DIRECTORY_SEPARATOR . 'replaceLink.txt';
+        $this->assertTrue(is_link($replaceLink));
         $this->assertSame(
-            realpath($tmp . '/sourceC/fileC.txt'),
-            realpath($tmp . '/' . readlink($tmp . '/replaceLink.txt'))
+            realpath($tmp . DIRECTORY_SEPARATOR . 'sourceC' . DIRECTORY_SEPARATOR . 'fileC.txt'),
+            $this->resolveLinkTarget($replaceLink, $tmp)
         );
     }
 
     public function testDryRunViaComposerDoesNotCreateLinks(): void
     {
-        $tmp = sys_get_temp_dir() . '/project_' . uniqid();
+        $tmp = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'project_' . uniqid();
         mkdir($tmp);
 
         // prepare sources
-        mkdir($tmp . '/sourceA', 0777, true);
-        file_put_contents($tmp . '/sourceA/fileA.txt', 'A');
+        mkdir($tmp . DIRECTORY_SEPARATOR . 'sourceA', 0777, true);
+        file_put_contents($tmp . DIRECTORY_SEPARATOR . 'sourceA' . DIRECTORY_SEPARATOR . 'fileA.txt', 'A');
 
         $pluginPath = realpath(__DIR__ . '/..');
 
@@ -124,7 +129,7 @@ class ComposerIntegrationTest extends TestCase
                 ]
             ]
         ];
-        file_put_contents($tmp . '/composer.json', json_encode($composerData, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+        file_put_contents($tmp . DIRECTORY_SEPARATOR . 'composer.json', json_encode($composerData, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
 
         $cwd = getcwd();
         chdir($tmp);
@@ -135,18 +140,18 @@ class ComposerIntegrationTest extends TestCase
 
         $this->assertSame(0, $code, implode("\n", $output));
 
-        $this->assertFalse(file_exists($tmp . '/linkA.txt'));
+        $this->assertFalse(file_exists($tmp . DIRECTORY_SEPARATOR . 'linkA.txt'));
     }
 
     public function testCleanupRemovesUnusedSymlinks(): void
     {
-        $tmp = sys_get_temp_dir() . '/project_' . uniqid();
+        $tmp = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'project_' . uniqid();
         mkdir($tmp);
 
-        mkdir($tmp . '/sourceA', 0777, true);
-        file_put_contents($tmp . '/sourceA/fileA.txt', 'A');
-        mkdir($tmp . '/sourceB', 0777, true);
-        file_put_contents($tmp . '/sourceB/fileB.txt', 'B');
+        mkdir($tmp . DIRECTORY_SEPARATOR . 'sourceA', 0777, true);
+        file_put_contents($tmp . DIRECTORY_SEPARATOR . 'sourceA' . DIRECTORY_SEPARATOR . 'fileA.txt', 'A');
+        mkdir($tmp . DIRECTORY_SEPARATOR . 'sourceB', 0777, true);
+        file_put_contents($tmp . DIRECTORY_SEPARATOR . 'sourceB' . DIRECTORY_SEPARATOR . 'fileB.txt', 'B');
 
         $pluginPath = realpath(__DIR__ . '/..');
 
@@ -174,7 +179,7 @@ class ComposerIntegrationTest extends TestCase
                 ]
             ]
         ];
-        file_put_contents($tmp . '/composer.json', json_encode($composerData, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+        file_put_contents($tmp . DIRECTORY_SEPARATOR . 'composer.json', json_encode($composerData, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
 
         $cwd = getcwd();
         chdir($tmp);
@@ -182,18 +187,18 @@ class ComposerIntegrationTest extends TestCase
         chdir($cwd);
 
         $this->assertSame(0, $code, implode("\n", $output));
-        $this->assertTrue(is_link($tmp . '/linkA.txt'));
-        $this->assertTrue(is_link($tmp . '/linkB.txt'));
+        $this->assertTrue(is_link($tmp . DIRECTORY_SEPARATOR . 'linkA.txt'));
+        $this->assertTrue(is_link($tmp . DIRECTORY_SEPARATOR . 'linkB.txt'));
 
-        $registryPath = $tmp . '/vendor/composer-symlinks-state.json';
+        $registryPath = $tmp . DIRECTORY_SEPARATOR . 'vendor/composer-symlinks-state.json';
         $this->assertFileExists($registryPath);
         $registry = json_decode((string)file_get_contents($registryPath), true);
         $this->assertIsArray($registry);
-        $this->assertArrayHasKey($tmp . '/linkA.txt', $registry);
-        $this->assertArrayHasKey($tmp . '/linkB.txt', $registry);
+        $this->assertArrayHasKey($this->normalizePath($tmp . '/linkA.txt'), $registry);
+        $this->assertArrayHasKey($this->normalizePath($tmp . '/linkB.txt'), $registry);
 
         unset($composerData['extra']['somework/composer-symlinks']['symlinks']['sourceB/fileB.txt']);
-        file_put_contents($tmp . '/composer.json', json_encode($composerData, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+        file_put_contents($tmp . DIRECTORY_SEPARATOR . 'composer.json', json_encode($composerData, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
 
         chdir($tmp);
         $output = [];
@@ -201,12 +206,59 @@ class ComposerIntegrationTest extends TestCase
         chdir($cwd);
 
         $this->assertSame(0, $code, implode("\n", $output));
-        $this->assertTrue(is_link($tmp . '/linkA.txt'));
-        $this->assertFalse(file_exists($tmp . '/linkB.txt'));
+        $this->assertTrue(is_link($tmp . DIRECTORY_SEPARATOR . 'linkA.txt'));
+        $this->assertFalse(file_exists($tmp . DIRECTORY_SEPARATOR . 'linkB.txt'));
 
         $registry = json_decode((string)file_get_contents($registryPath), true);
         $this->assertIsArray($registry);
-        $this->assertArrayHasKey($tmp . '/linkA.txt', $registry);
-        $this->assertArrayNotHasKey($tmp . '/linkB.txt', $registry);
+        $this->assertArrayHasKey($this->normalizePath($tmp . '/linkA.txt'), $registry);
+        $this->assertArrayNotHasKey($this->normalizePath($tmp . '/linkB.txt'), $registry);
+    }
+
+    private function resolveLinkTarget(string $link, string $baseDir): string
+    {
+        $target = readlink($link);
+        $this->assertNotFalse($target);
+
+        $normalized = $this->normalizePath($target);
+
+        if ($this->isAbsolutePath($normalized)) {
+            $resolved = realpath($normalized);
+            $this->assertNotFalse($resolved);
+
+            return $resolved;
+        }
+
+        $resolved = realpath(dirname($link) . DIRECTORY_SEPARATOR . $normalized);
+        if ($resolved !== false) {
+            return $resolved;
+        }
+
+        $resolved = realpath($baseDir . DIRECTORY_SEPARATOR . $normalized);
+        $this->assertNotFalse($resolved);
+
+        return $resolved;
+    }
+
+    private function normalizePath(string $path): string
+    {
+        if (DIRECTORY_SEPARATOR === '\\') {
+            return str_replace('/', DIRECTORY_SEPARATOR, $path);
+        }
+
+        return $path;
+    }
+
+    private function isAbsolutePath(string $path): bool
+    {
+        if ($path === '') {
+            return false;
+        }
+
+        if (DIRECTORY_SEPARATOR === '\\') {
+            return (bool) preg_match('{^(?:[A-Za-z]:\\\\|\\\\\\\\)}', $path);
+        }
+
+        return $path[0] === DIRECTORY_SEPARATOR;
     }
 }
