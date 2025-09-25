@@ -16,12 +16,13 @@ class SymlinksFactoryTest extends TestCase
 {
     public function testProcessCreatesSymlinkDefinition(): void
     {
-        $tmp = sys_get_temp_dir() . '/factory_' . uniqid();
+        $tmp = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'factory_' . uniqid();
         mkdir($tmp);
-        mkdir($tmp . '/target');
-        file_put_contents($tmp . '/target/file.txt', 'content');
+        mkdir($tmp . DIRECTORY_SEPARATOR . 'target');
+        file_put_contents($tmp . DIRECTORY_SEPARATOR . 'target' . DIRECTORY_SEPARATOR . 'file.txt', 'content');
         $cwd = getcwd();
         chdir($tmp);
+        $projectDir = $this->getResolvedCwd();
 
         $composer = new Composer();
         $dispatcher = new EventDispatcher($composer, new NullIO());
@@ -43,16 +44,17 @@ class SymlinksFactoryTest extends TestCase
 
         $this->assertCount(1, $symlinks);
         $symlink = $symlinks[0];
-        $this->assertSame(realpath($tmp . '/target/file.txt'), $symlink->getTarget());
-        $this->assertSame($tmp . '/link.txt', $symlink->getLink());
+        $this->assertSame(realpath($tmp . DIRECTORY_SEPARATOR . 'target' . DIRECTORY_SEPARATOR . 'file.txt'), $symlink->getTarget());
+        $this->assertSamePath($projectDir . DIRECTORY_SEPARATOR . 'link.txt', $symlink->getLink());
         $this->assertTrue($symlink->isAbsolutePath());
+        $this->assertSame(\SomeWork\Symlinks\Symlink::WINDOWS_MODE_JUNCTION, $symlink->getWindowsMode());
 
         chdir($cwd);
     }
 
     public function testProcessSkipsMissingTargetPerLink(): void
     {
-        $tmp = sys_get_temp_dir() . '/factory_' . uniqid();
+        $tmp = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'factory_' . uniqid();
         mkdir($tmp);
         $cwd = getcwd();
         chdir($tmp);
@@ -84,12 +86,12 @@ class SymlinksFactoryTest extends TestCase
 
     public function testExistingRelativeSymlinkIsNotProcessed(): void
     {
-        $tmp = sys_get_temp_dir() . '/factory_' . uniqid();
+        $tmp = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'factory_' . uniqid();
         mkdir($tmp);
-        mkdir($tmp . '/target', 0777, true);
-        mkdir($tmp . '/dir', 0777, true);
-        file_put_contents($tmp . '/target/file.txt', 'content');
-        symlink('../target/file.txt', $tmp . '/dir/link.txt');
+        mkdir($tmp . DIRECTORY_SEPARATOR . 'target', 0777, true);
+        mkdir($tmp . DIRECTORY_SEPARATOR . 'dir', 0777, true);
+        file_put_contents($tmp . DIRECTORY_SEPARATOR . 'target' . DIRECTORY_SEPARATOR . 'file.txt', 'content');
+        $this->createSymlinkOrSkip('../target/file.txt', $tmp . DIRECTORY_SEPARATOR . 'dir' . DIRECTORY_SEPARATOR . 'link.txt');
         $cwd = getcwd();
         chdir($tmp);
 
@@ -246,7 +248,7 @@ class SymlinksFactoryTest extends TestCase
 
     public function testProcessSkipsMissingTargetGlobally(): void
     {
-        $tmp = sys_get_temp_dir() . '/factory_' . uniqid();
+        $tmp = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'factory_' . uniqid();
         mkdir($tmp);
         $cwd = getcwd();
         chdir($tmp);
@@ -276,10 +278,10 @@ class SymlinksFactoryTest extends TestCase
 
     public function testProcessSetsForceCreateFromConfig(): void
     {
-        $tmp = sys_get_temp_dir() . '/factory_' . uniqid();
+        $tmp = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'factory_' . uniqid();
         mkdir($tmp);
-        mkdir($tmp . '/target');
-        file_put_contents($tmp . '/target/file.txt', 'content');
+        mkdir($tmp . DIRECTORY_SEPARATOR . 'target');
+        file_put_contents($tmp . DIRECTORY_SEPARATOR . 'target' . DIRECTORY_SEPARATOR . 'file.txt', 'content');
         $cwd = getcwd();
         chdir($tmp);
 
@@ -309,7 +311,7 @@ class SymlinksFactoryTest extends TestCase
 
     public function testProcessThrowsExceptionForMissingTarget(): void
     {
-        $tmp = sys_get_temp_dir() . '/factory_' . uniqid();
+        $tmp = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'factory_' . uniqid();
         mkdir($tmp);
         $cwd = getcwd();
         chdir($tmp);
@@ -342,10 +344,10 @@ class SymlinksFactoryTest extends TestCase
 
     public function testProcessThrowsLinkDirectoryErrorOnEnsureDirectoryFailure(): void
     {
-        $tmp = sys_get_temp_dir() . '/factory_' . uniqid();
+        $tmp = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'factory_' . uniqid();
         mkdir($tmp);
-        mkdir($tmp . '/target');
-        file_put_contents($tmp . '/target/file.txt', 'content');
+        mkdir($tmp . DIRECTORY_SEPARATOR . 'target');
+        file_put_contents($tmp . DIRECTORY_SEPARATOR . 'target' . DIRECTORY_SEPARATOR . 'file.txt', 'content');
         $cwd = getcwd();
         chdir($tmp);
 
@@ -384,15 +386,18 @@ class SymlinksFactoryTest extends TestCase
 
     public function testProcessExpandsProjectDirAndEnvPlaceholders(): void
     {
-        $tmp = sys_get_temp_dir() . '/factory_' . uniqid();
+        $tmp = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'factory_' . uniqid();
         mkdir($tmp);
-        mkdir($tmp . '/env-dir');
-        file_put_contents($tmp . '/env-dir/file.txt', 'content');
-        mkdir($tmp . '/links');
+        mkdir($tmp . DIRECTORY_SEPARATOR . 'env-dir');
+        file_put_contents($tmp . DIRECTORY_SEPARATOR . 'env-dir' . DIRECTORY_SEPARATOR . 'file.txt', 'content');
+        mkdir($tmp . DIRECTORY_SEPARATOR . 'links');
         $cwd = getcwd();
         chdir($tmp);
+        $projectDir = $this->getResolvedCwd();
 
-        putenv('SYMLINKS_CUSTOM_DIR=' . $tmp . '/env-dir');
+        $envDir = realpath($tmp . DIRECTORY_SEPARATOR . 'env-dir');
+        $this->assertNotFalse($envDir);
+        putenv('SYMLINKS_CUSTOM_DIR=' . $envDir);
 
         $composer = new Composer();
         $dispatcher = new EventDispatcher($composer, new NullIO());
@@ -412,8 +417,8 @@ class SymlinksFactoryTest extends TestCase
         $symlinks = $factory->process();
 
         $this->assertCount(1, $symlinks);
-        $this->assertSame(realpath($tmp . '/env-dir/file.txt'), $symlinks[0]->getTarget());
-        $this->assertSame($tmp . '/links/env-link.txt', $symlinks[0]->getLink());
+        $this->assertSame(realpath($tmp . DIRECTORY_SEPARATOR . 'env-dir' . DIRECTORY_SEPARATOR . 'file.txt'), $symlinks[0]->getTarget());
+        $this->assertSamePath($projectDir . DIRECTORY_SEPARATOR . 'links' . DIRECTORY_SEPARATOR . 'env-link.txt', $symlinks[0]->getLink());
 
         putenv('SYMLINKS_CUSTOM_DIR');
         chdir($cwd);
@@ -421,13 +426,14 @@ class SymlinksFactoryTest extends TestCase
 
     public function testProcessHandlesEmptyEnvPlaceholderExpansion(): void
     {
-        $tmp = sys_get_temp_dir() . '/factory_' . uniqid();
+        $tmp = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'factory_' . uniqid();
         mkdir($tmp);
-        mkdir($tmp . '/target', 0777, true);
-        file_put_contents($tmp . '/target/file.txt', 'content');
-        mkdir($tmp . '/links', 0777, true);
+        mkdir($tmp . DIRECTORY_SEPARATOR . 'target', 0777, true);
+        file_put_contents($tmp . DIRECTORY_SEPARATOR . 'target' . DIRECTORY_SEPARATOR . 'file.txt', 'content');
+        mkdir($tmp . DIRECTORY_SEPARATOR . 'links', 0777, true);
         $cwd = getcwd();
         chdir($tmp);
+        $projectDir = $this->getResolvedCwd();
 
         $previousValue = getenv('SYMLINKS_OPTIONAL_SEGMENT');
         putenv('SYMLINKS_OPTIONAL_SEGMENT');
@@ -450,8 +456,8 @@ class SymlinksFactoryTest extends TestCase
         $symlinks = $factory->process();
 
         $this->assertCount(1, $symlinks);
-        $this->assertSame(realpath($tmp . '/target/file.txt'), $symlinks[0]->getTarget());
-        $this->assertSame($tmp . '/links/file-link.txt', $symlinks[0]->getLink());
+        $this->assertSame(realpath($tmp . DIRECTORY_SEPARATOR . 'target' . DIRECTORY_SEPARATOR . 'file.txt'), $symlinks[0]->getTarget());
+        $this->assertSamePath($projectDir . DIRECTORY_SEPARATOR . 'links' . DIRECTORY_SEPARATOR . 'file-link.txt', $symlinks[0]->getLink());
 
         if ($previousValue === false) {
             putenv('SYMLINKS_OPTIONAL_SEGMENT');
@@ -464,15 +470,14 @@ class SymlinksFactoryTest extends TestCase
 
     public function testProcessExpandsVendorDirPlaceholder(): void
     {
-        $tmp = sys_get_temp_dir() . '/factory_' . uniqid();
+        $tmp = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'factory_' . uniqid();
         mkdir($tmp);
-        mkdir($tmp . '/target');
-        file_put_contents($tmp . '/target/file.txt', 'content');
-        $vendorDir = $tmp . '/custom-vendor';
+        mkdir($tmp . DIRECTORY_SEPARATOR . 'target');
+        file_put_contents($tmp . DIRECTORY_SEPARATOR . 'target' . DIRECTORY_SEPARATOR . 'file.txt', 'content');
+        $vendorDir = $tmp . DIRECTORY_SEPARATOR . 'custom-vendor';
         mkdir($vendorDir);
         $cwd = getcwd();
         chdir($tmp);
-
         $composer = new Composer();
         $config = new Config(false, $tmp);
         $config->merge(['config' => ['vendor-dir' => $vendorDir]]);
@@ -495,20 +500,23 @@ class SymlinksFactoryTest extends TestCase
 
         $this->assertCount(1, $symlinks);
         $this->assertSame(realpath($tmp . '/target/file.txt'), $symlinks[0]->getTarget());
-        $this->assertSame($vendorDir . '/package/link.txt', $symlinks[0]->getLink());
+        $vendorDirReal = realpath($vendorDir);
+        $this->assertNotFalse($vendorDirReal);
+        $this->assertSamePath($vendorDirReal . DIRECTORY_SEPARATOR . 'package' . DIRECTORY_SEPARATOR . 'link.txt', $symlinks[0]->getLink());
 
         chdir($cwd);
     }
 
     public function testProcessExpandsVendorDirPlaceholderWithRelativeConfig(): void
     {
-        $tmp = sys_get_temp_dir() . '/factory_' . uniqid();
+        $tmp = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'factory_' . uniqid();
         mkdir($tmp);
-        mkdir($tmp . '/target');
-        file_put_contents($tmp . '/target/file.txt', 'content');
-        mkdir($tmp . '/build/vendor', 0777, true);
+        mkdir($tmp . DIRECTORY_SEPARATOR . 'target');
+        file_put_contents($tmp . DIRECTORY_SEPARATOR . 'target' . DIRECTORY_SEPARATOR . 'file.txt', 'content');
+        mkdir($tmp . DIRECTORY_SEPARATOR . 'build' . DIRECTORY_SEPARATOR . 'vendor', 0777, true);
         $cwd = getcwd();
         chdir($tmp);
+        $projectDir = $this->getResolvedCwd();
 
         $composer = new Composer();
         $config = new Config(false, $tmp);
@@ -532,8 +540,174 @@ class SymlinksFactoryTest extends TestCase
 
         $this->assertCount(1, $symlinks);
         $this->assertSame(realpath($tmp . '/target/file.txt'), $symlinks[0]->getTarget());
-        $this->assertSame($tmp . '/build/vendor/package/link.txt', $symlinks[0]->getLink());
+        $vendorDirReal = realpath($projectDir . DIRECTORY_SEPARATOR . 'build' . DIRECTORY_SEPARATOR . 'vendor');
+        $this->assertNotFalse($vendorDirReal);
+        $this->assertSamePath($vendorDirReal . DIRECTORY_SEPARATOR . 'package' . DIRECTORY_SEPARATOR . 'link.txt', $symlinks[0]->getLink());
 
         chdir($cwd);
+    }
+
+    public function testProcessAllowsConfiguringWindowsMode(): void
+    {
+        $tmp = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'factory_' . uniqid();
+        mkdir($tmp);
+        mkdir($tmp . DIRECTORY_SEPARATOR . 'target');
+        file_put_contents($tmp . DIRECTORY_SEPARATOR . 'target' . DIRECTORY_SEPARATOR . 'file.txt', 'content');
+        $cwd = getcwd();
+        chdir($tmp);
+
+        $composer = new Composer();
+        $dispatcher = new EventDispatcher($composer, new NullIO());
+        $composer->setEventDispatcher($dispatcher);
+        $package = new RootPackage('test/test', '1.0.0', '1.0.0');
+        $package->setExtra([
+            'somework/composer-symlinks' => [
+                'windows-mode' => 'copy',
+                'symlinks' => [
+                    'target/file.txt' => [
+                        'link' => 'link.txt',
+                        'windows-mode' => 'symlink'
+                    ]
+                ]
+            ]
+        ]);
+        $composer->setPackage($package);
+
+        $event = new Event('post-install-cmd', $composer, new NullIO());
+        $factory = new SymlinksFactory($event, new Filesystem());
+        $symlinks = $factory->process();
+
+        $this->assertCount(1, $symlinks);
+        $symlink = $symlinks[0];
+        $this->assertSame(\SomeWork\Symlinks\Symlink::WINDOWS_MODE_SYMLINK, $symlink->getWindowsMode());
+
+        chdir($cwd);
+    }
+
+    public function testProcessRejectsInvalidWindowsMode(): void
+    {
+        $tmp = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'factory_' . uniqid();
+        mkdir($tmp);
+        mkdir($tmp . DIRECTORY_SEPARATOR . 'target');
+        file_put_contents($tmp . DIRECTORY_SEPARATOR . 'target' . DIRECTORY_SEPARATOR . 'file.txt', 'content');
+        $cwd = getcwd();
+        chdir($tmp);
+
+        $composer = new Composer();
+        $dispatcher = new EventDispatcher($composer, new NullIO());
+        $composer->setEventDispatcher($dispatcher);
+        $package = new RootPackage('test/test', '1.0.0', '1.0.0');
+        $package->setExtra([
+            'somework/composer-symlinks' => [
+                'windows-mode' => 'invalid',
+                'symlinks' => [
+                    'target/file.txt' => 'link.txt'
+                ]
+            ]
+        ]);
+        $composer->setPackage($package);
+
+        $event = new Event('post-install-cmd', $composer, new NullIO());
+        $factory = new SymlinksFactory($event, new Filesystem());
+
+        $this->expectException(\SomeWork\Symlinks\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Unknown windows-mode');
+
+        try {
+            $factory->process();
+        } finally {
+            chdir($cwd);
+        }
+    }
+
+    public function testProcessRejectsNonScalarWindowsMode(): void
+    {
+        $tmp = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'factory_' . uniqid();
+        mkdir($tmp);
+        mkdir($tmp . DIRECTORY_SEPARATOR . 'target');
+        file_put_contents($tmp . DIRECTORY_SEPARATOR . 'target' . DIRECTORY_SEPARATOR . 'file.txt', 'content');
+        $cwd = getcwd();
+        chdir($tmp);
+
+        $composer = new Composer();
+        $dispatcher = new EventDispatcher($composer, new NullIO());
+        $composer->setEventDispatcher($dispatcher);
+        $package = new RootPackage('test/test', '1.0.0', '1.0.0');
+        $package->setExtra([
+            'somework/composer-symlinks' => [
+                'windows-mode' => ['array'],
+                'symlinks' => [
+                    'target/file.txt' => 'link.txt'
+                ]
+            ]
+        ]);
+        $composer->setPackage($package);
+
+        $event = new Event('post-install-cmd', $composer, new NullIO());
+        $factory = new SymlinksFactory($event, new Filesystem());
+
+        $this->expectException(\SomeWork\Symlinks\InvalidArgumentException::class);
+        $this->expectExceptionMessage('The config option windows-mode must be a string or scalar value.');
+
+        try {
+            $factory->process();
+        } finally {
+            chdir($cwd);
+        }
+    }
+
+    private function getResolvedCwd(): string
+    {
+        $cwd = getcwd();
+        $this->assertNotFalse($cwd);
+
+        $resolved = realpath($cwd);
+
+        return $resolved === false ? $cwd : $resolved;
+    }
+
+    private function normalizePath(string $path): string
+    {
+        if (DIRECTORY_SEPARATOR === '\\') {
+            return str_replace('/', DIRECTORY_SEPARATOR, $path);
+        }
+
+        return $path;
+    }
+
+    private function assertSamePath(string $expected, string $actual): void
+    {
+        $this->assertSame(
+            $this->canonicalizePath($expected),
+            $this->canonicalizePath($actual)
+        );
+    }
+
+    private function canonicalizePath(string $path): string
+    {
+        $directory = dirname($path);
+        $basename = basename($path);
+
+        $resolvedDirectory = realpath($directory);
+        if ($resolvedDirectory !== false) {
+            return $this->normalizePath($resolvedDirectory . DIRECTORY_SEPARATOR . $basename);
+        }
+
+        return $this->normalizePath($path);
+    }
+
+    private function createSymlinkOrSkip(string $target, string $link): void
+    {
+        error_clear_last();
+        if (@symlink($target, $link)) {
+            return;
+        }
+
+        $error = error_get_last();
+        if (DIRECTORY_SEPARATOR === '\\') {
+            $this->markTestSkipped('Symlink creation is not available: ' . ($error['message'] ?? 'unknown error'));
+        }
+
+        $this->fail('Failed to create symlink: ' . ($error['message'] ?? 'unknown error'));
     }
 }

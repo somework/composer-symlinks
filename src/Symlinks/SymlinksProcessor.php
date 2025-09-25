@@ -4,16 +4,22 @@ declare(strict_types=1);
 namespace SomeWork\Symlinks;
 
 use Composer\Util\Filesystem;
+use Composer\Util\Platform;
+use SomeWork\Symlinks\Processor\LinkProcessorInterface;
+use SomeWork\Symlinks\Processor\UnixLinkProcessor;
+use SomeWork\Symlinks\Processor\WindowsLinkProcessor;
 
 class SymlinksProcessor
 {
     private Filesystem $filesystem;
     private bool $dryRun = false;
+    private LinkProcessorInterface $linkProcessor;
 
-    public function __construct(Filesystem $filesystem, bool $dryRun = false)
+    public function __construct(Filesystem $filesystem, bool $dryRun = false, ?LinkProcessorInterface $linkProcessor = null)
     {
         $this->filesystem = $filesystem;
         $this->dryRun = $dryRun;
+        $this->linkProcessor = $linkProcessor ?? $this->createDefaultLinkProcessor();
     }
 
     public function setDryRun(bool $dryRun): void
@@ -56,10 +62,7 @@ class SymlinksProcessor
             throw new LinkDirectoryError('Link ' . $symlink->getLink() . ' already exists');
         }
 
-        if ($symlink->isAbsolutePath()) {
-            return @symlink($symlink->getTarget(), $symlink->getLink());
-        }
-        return $this->filesystem->relativeSymlink($symlink->getTarget(), $symlink->getLink());
+        return $this->linkProcessor->create($symlink);
     }
 
     protected function isToUnlink(string $path): bool
@@ -68,5 +71,14 @@ class SymlinksProcessor
             file_exists($path) ||
             is_dir($path) ||
             is_link($path);
+    }
+
+    private function createDefaultLinkProcessor(): LinkProcessorInterface
+    {
+        if (Platform::isWindows()) {
+            return new WindowsLinkProcessor($this->filesystem);
+        }
+
+        return new UnixLinkProcessor($this->filesystem);
     }
 }

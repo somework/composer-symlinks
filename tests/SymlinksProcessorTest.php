@@ -11,12 +11,12 @@ class SymlinksProcessorTest extends TestCase
 {
     public function testProcessSymlinkCreatesLink(): void
     {
-        $tmp = sys_get_temp_dir() . '/processor_' . uniqid();
+        $tmp = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'processor_' . uniqid();
         mkdir($tmp);
-        $target = $tmp . '/target.txt';
+        $target = $tmp . DIRECTORY_SEPARATOR . 'target.txt';
         file_put_contents($target, 'data');
 
-        $link = $tmp . '/link.txt';
+        $link = $tmp . DIRECTORY_SEPARATOR . 'link.txt';
 
         $symlink = (new Symlink())
             ->setTarget($target)
@@ -27,18 +27,19 @@ class SymlinksProcessorTest extends TestCase
         $result = $processor->processSymlink($symlink);
 
         $this->assertTrue($result);
-        $this->assertTrue(is_link($link));
-        $this->assertSame(realpath($target), realpath(readlink($link)));
+        $this->assertLinkOrMirror($target, $link, function (string $linkPath) use ($target): string {
+            return $this->resolveLinkTarget($linkPath);
+        });
     }
 
     public function testDryRunDoesNotCreateLink(): void
     {
-        $tmp = sys_get_temp_dir() . '/processor_' . uniqid();
+        $tmp = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'processor_' . uniqid();
         mkdir($tmp);
-        $target = $tmp . '/target.txt';
+        $target = $tmp . DIRECTORY_SEPARATOR . 'target.txt';
         file_put_contents($target, 'data');
 
-        $link = $tmp . '/link.txt';
+        $link = $tmp . DIRECTORY_SEPARATOR . 'link.txt';
 
         $symlink = (new Symlink())
             ->setTarget($target)
@@ -54,12 +55,12 @@ class SymlinksProcessorTest extends TestCase
 
     public function testForceCreateReplacesExistingLink(): void
     {
-        $tmp = sys_get_temp_dir() . '/processor_' . uniqid();
+        $tmp = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'processor_' . uniqid();
         mkdir($tmp);
-        $target = $tmp . '/target.txt';
+        $target = $tmp . DIRECTORY_SEPARATOR . 'target.txt';
         file_put_contents($target, 'new');
 
-        $link = $tmp . '/link.txt';
+        $link = $tmp . DIRECTORY_SEPARATOR . 'link.txt';
         file_put_contents($link, 'old');
 
         $symlink = (new Symlink())
@@ -80,20 +81,21 @@ class SymlinksProcessorTest extends TestCase
         $result = $processor->processSymlink($symlink);
 
         $this->assertTrue($result);
-        $this->assertTrue(is_link($link));
-        $this->assertSame(realpath($target), realpath(readlink($link)));
+        $this->assertLinkOrMirror($target, $link, function (string $linkPath) use ($target): string {
+            return $this->resolveLinkTarget($linkPath);
+        });
     }
 
     public function testThrowsErrorWhenLinkExists(): void
     {
         $this->expectException(\SomeWork\Symlinks\LinkDirectoryError::class);
 
-        $tmp = sys_get_temp_dir() . '/processor_' . uniqid();
+        $tmp = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'processor_' . uniqid();
         mkdir($tmp);
-        $target = $tmp . '/target.txt';
+        $target = $tmp . DIRECTORY_SEPARATOR . 'target.txt';
         file_put_contents($target, 'data');
 
-        $link = $tmp . '/link.txt';
+        $link = $tmp . DIRECTORY_SEPARATOR . 'link.txt';
         file_put_contents($link, 'old');
 
         $symlink = (new Symlink())
@@ -109,12 +111,12 @@ class SymlinksProcessorTest extends TestCase
     {
         $this->expectException(\SomeWork\Symlinks\LinkDirectoryError::class);
 
-        $tmp = sys_get_temp_dir() . '/processor_' . uniqid();
+        $tmp = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'processor_' . uniqid();
         mkdir($tmp);
-        $target = $tmp . '/target.txt';
+        $target = $tmp . DIRECTORY_SEPARATOR . 'target.txt';
         file_put_contents($target, 'data');
 
-        $link = $tmp . '/link.txt';
+        $link = $tmp . DIRECTORY_SEPARATOR . 'link.txt';
         file_put_contents($link, 'old');
 
         $symlink = (new Symlink())
@@ -128,13 +130,13 @@ class SymlinksProcessorTest extends TestCase
 
     public function testProcessSymlinkCreatesRelativeLink(): void
     {
-        $tmp = sys_get_temp_dir() . '/processor_' . uniqid();
+        $tmp = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'processor_' . uniqid();
         mkdir($tmp);
-        mkdir($tmp . '/dir', 0777, true);
-        $target = $tmp . '/target.txt';
+        mkdir($tmp . DIRECTORY_SEPARATOR . 'dir', 0777, true);
+        $target = $tmp . DIRECTORY_SEPARATOR . 'target.txt';
         file_put_contents($target, 'data');
 
-        $link = $tmp . '/dir/link.txt';
+        $link = $tmp . DIRECTORY_SEPARATOR . 'dir' . DIRECTORY_SEPARATOR . 'link.txt';
 
         $symlink = (new Symlink())
             ->setTarget($target)
@@ -144,7 +146,199 @@ class SymlinksProcessorTest extends TestCase
         $result = $processor->processSymlink($symlink);
 
         $this->assertTrue($result);
+        $this->assertLinkOrMirror($target, $link, function (string $linkPath) use ($target): string {
+            return $this->resolveRelativeLinkTarget($linkPath);
+        });
+    }
+
+    /**
+     * @requires OSFAMILY Windows
+     */
+    public function testWindowsFallbackCreatesJunctionWhenSymlinksUnavailable(): void
+    {
+        $tmp = sys_get_temp_dir() . '\\processor_' . uniqid();
+        mkdir($tmp);
+        mkdir($tmp . '\\target');
+        file_put_contents($tmp . '\\target\\file.txt', 'data');
+
+        $link = $tmp . '\\linkDir';
+
+        if (@symlink($tmp . '\\target', $link)) {
+            // Symlinks are available; cleanup and skip so that fallback is not exercised.
+            $filesystem = new Filesystem();
+            $filesystem->removeDirectory($link);
+            $this->markTestSkipped('Native symlinks are available.');
+        }
+
+        $symlink = (new Symlink())
+            ->setTarget($tmp . '\\target')
+            ->setLink($link)
+            ->setAbsolutePath(true)
+            ->setWindowsMode(Symlink::WINDOWS_MODE_JUNCTION);
+
+        $processor = new SymlinksProcessor(new Filesystem());
+
+        try {
+            $result = $processor->processSymlink($symlink);
+            $this->assertTrue($result);
+            $this->assertDirectoryExists($link);
+            $this->assertFileExists($link . DIRECTORY_SEPARATOR . 'file.txt');
+            $this->assertSame('data', file_get_contents($link . DIRECTORY_SEPARATOR . 'file.txt'));
+        } finally {
+            $filesystem = new Filesystem();
+            $filesystem->removeDirectory($tmp);
+        }
+    }
+
+    /**
+     * @requires OSFAMILY Windows
+     */
+    public function testWindowsFallbackCreatesCopyWhenHardlinksUnavailable(): void
+    {
+        $tmp = sys_get_temp_dir() . '\\processor_' . uniqid();
+        mkdir($tmp);
+        file_put_contents($tmp . '\\target.txt', 'payload');
+
+        $link = $tmp . '\\link.txt';
+
+        if (@symlink($tmp . '\\target.txt', $link)) {
+            unlink($link);
+            $this->markTestSkipped('Native symlinks are available.');
+        }
+
+        $symlink = (new Symlink())
+            ->setTarget($tmp . '\\target.txt')
+            ->setLink($link)
+            ->setAbsolutePath(true)
+            ->setWindowsMode(Symlink::WINDOWS_MODE_JUNCTION);
+
+        $processor = new SymlinksProcessor(new Filesystem());
+
+        try {
+            $result = $processor->processSymlink($symlink);
+            $this->assertTrue($result);
+            $this->assertFileExists($link);
+            $this->assertSame('payload', file_get_contents($link));
+        } finally {
+            $filesystem = new Filesystem();
+            $filesystem->removeDirectory($tmp);
+        }
+    }
+
+    /**
+     * @requires OSFAMILY Windows
+     */
+    public function testWindowsCopyModeSkipsSymlinks(): void
+    {
+        $tmp = sys_get_temp_dir() . '\\processor_' . uniqid();
+        mkdir($tmp);
+        file_put_contents($tmp . '\\target.txt', 'payload');
+
+        $link = $tmp . '\\copy.txt';
+
+        $symlink = (new Symlink())
+            ->setTarget($tmp . '\\target.txt')
+            ->setLink($link)
+            ->setAbsolutePath(true)
+            ->setWindowsMode(Symlink::WINDOWS_MODE_COPY);
+
+        $processor = new SymlinksProcessor(new Filesystem());
+
+        try {
+            $result = $processor->processSymlink($symlink);
+            $this->assertTrue($result);
+            $this->assertFileExists($link);
+            $this->assertFalse(is_link($link));
+            $this->assertSame('payload', file_get_contents($link));
+        } finally {
+            $filesystem = new Filesystem();
+            $filesystem->removeDirectory($tmp);
+        }
+    }
+
+    private function assertLinkOrMirror(string $target, string $link, callable $resolver): void
+    {
+        if (DIRECTORY_SEPARATOR === '\\') {
+            if (!is_link($link)) {
+                $this->assertFileMirrorsTarget($target, $link);
+
+                return;
+            }
+
+            if (@readlink($link) === false) {
+                $this->assertFileMirrorsTarget($target, $link);
+
+                return;
+            }
+        } else {
+            $this->assertTrue(is_link($link));
+        }
+
         $this->assertTrue(is_link($link));
-        $this->assertSame(realpath($target), realpath(dirname($link) . '/' . readlink($link)));
+        $this->assertSame(realpath($target), $resolver($link));
+    }
+
+    private function assertFileMirrorsTarget(string $target, string $link): void
+    {
+        $this->assertFileExists($link);
+        $targetContents = file_get_contents($target);
+        $linkContents = file_get_contents($link);
+
+        $this->assertNotFalse($targetContents);
+        $this->assertNotFalse($linkContents);
+        $this->assertSame($targetContents, $linkContents);
+    }
+
+    private function resolveLinkTarget(string $link): string
+    {
+        $target = readlink($link);
+        $this->assertNotFalse($target);
+
+        $normalized = $this->normalizePath($target);
+
+        if ($this->isAbsolutePath($normalized)) {
+            $resolved = realpath($normalized);
+            $this->assertNotFalse($resolved);
+
+            return $resolved;
+        }
+
+        $resolved = realpath(dirname($link) . DIRECTORY_SEPARATOR . $normalized);
+        $this->assertNotFalse($resolved);
+
+        return $resolved;
+    }
+
+    private function resolveRelativeLinkTarget(string $link): string
+    {
+        $target = readlink($link);
+        $this->assertNotFalse($target);
+
+        $resolved = realpath(dirname($link) . DIRECTORY_SEPARATOR . $this->normalizePath($target));
+        $this->assertNotFalse($resolved);
+
+        return $resolved;
+    }
+
+    private function normalizePath(string $path): string
+    {
+        if (DIRECTORY_SEPARATOR === '\\') {
+            return str_replace('/', DIRECTORY_SEPARATOR, $path);
+        }
+
+        return $path;
+    }
+
+    private function isAbsolutePath(string $path): bool
+    {
+        if ($path === '') {
+            return false;
+        }
+
+        if (DIRECTORY_SEPARATOR === '\\') {
+            return (bool) preg_match('{^(?:[A-Za-z]:\\\\|\\\\\\\\)}', $path);
+        }
+
+        return $path[0] === DIRECTORY_SEPARATOR;
     }
 }
