@@ -19,6 +19,7 @@ class SymlinksFactory
     const ABSOLUTE_PATH = 'absolute-path';
     const THROW_EXCEPTION = 'throw-exception';
     const FORCE_CREATE = 'force-create';
+    const WINDOWS_MODE = 'windows-mode';
 
     protected Filesystem $fileSystem;
     protected Event $event;
@@ -163,7 +164,8 @@ class SymlinksFactory
             ->setTarget($targetPath)
             ->setLink($linkPath)
             ->setAbsolutePath($this->getConfig(static::ABSOLUTE_PATH, $linkData, false))
-            ->setForceCreate($this->getConfig(static::FORCE_CREATE, $linkData, false));
+            ->setForceCreate($this->getConfig(static::FORCE_CREATE, $linkData, false))
+            ->setWindowsMode($this->getWindowsMode($linkData));
 
         $this->registerConfiguredSymlink($linkPath, $targetPath);
 
@@ -319,5 +321,54 @@ class SymlinksFactory
         }
 
         return $vendorDir;
+    }
+
+    protected function getScalarConfig(string $name, $link = null, ?string $default = null): ?string
+    {
+        $value = null;
+        if (\is_array($link) && \array_key_exists($name, $link)) {
+            $value = $link[$name];
+        } else {
+            $extras = $this->event->getComposer()->getPackage()->getExtra();
+            if (!isset($extras[static::PACKAGE_NAME][$name])) {
+                return $default;
+            }
+            $value = $extras[static::PACKAGE_NAME][$name];
+        }
+
+        if ($value === null) {
+            return $default;
+        }
+
+        if (!\is_scalar($value)) {
+            throw new InvalidArgumentException(sprintf(
+                'The config option %s must be a string or scalar value.',
+                $name
+            ));
+        }
+
+        return (string) $value;
+    }
+
+    private function getWindowsMode($linkData): string
+    {
+        $mode = $this->getScalarConfig(static::WINDOWS_MODE, $linkData, Symlink::WINDOWS_MODE_JUNCTION);
+        $mode = strtolower($mode);
+
+        $allowed = [
+            Symlink::WINDOWS_MODE_SYMLINK,
+            Symlink::WINDOWS_MODE_JUNCTION,
+            Symlink::WINDOWS_MODE_COPY,
+        ];
+
+        if (!\in_array($mode, $allowed, true)) {
+            throw new InvalidArgumentException(sprintf(
+                'Unknown windows-mode "%s". Allowed values are: %s.',
+                $mode,
+                implode(', ', $allowed)
+            ));
+        }
+
+        return $mode;
     }
 }

@@ -39,3 +39,28 @@ jobs:
         with:
           name: coverage-${{ matrix.php-version }}
           path: coverage.xml
+
+  test-windows:
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php-version: ["8.1", "8.2"]
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php-version }}
+          coverage: none
+      - name: Cache Composer dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~\AppData\Local\Composer\Cache\files
+          key: ${{ runner.os }}-composer-${{ matrix.php-version }}-${{ hashFiles('**/composer.lock', '**/composer.json') }}
+          restore-keys: |
+            ${{ runner.os }}-composer-${{ matrix.php-version }}-
+      - name: Install dependencies
+        run: composer install --prefer-dist --no-progress --no-suggest --ignore-platform-req=ext-dom --ignore-platform-req=ext-xml --ignore-platform-req=ext-xmlwriter
+      - name: Run PHPUnit
+        run: vendor\bin\phpunit

@@ -28,6 +28,7 @@ The behaviour of the plugin can be tuned via the following configuration keys:
 | `throw-exception` | `true` | Throw an exception on errors instead of just printing the message. |
 | `force-create` | `false` | Remove any existing file or directory at the link path before creating the symlink. |
 | `cleanup` | `false` | Remove symlinks that were created previously but are no longer present in the configuration. |
+| `windows-mode` | `junction` | Windows-only strategy: `symlink` (require Developer Mode/administrator), `junction` (fallback to junction/hardlink/copy), or `copy` (mirror the target without links). |
 
 You can set personal configs for any symlink.
 For personal configs `link` must be defined
@@ -130,13 +131,25 @@ removed.
 | `The target path ... does not exists` | The target file or directory was not found. |
 | `Link ... already exists` | A file/directory already occupies the link path. |
 | `Cant unlink ...` | The plugin failed to remove a file when using `force-create`. |
+| `Failed to create symlink ... Enable Windows Developer Mode ...` | Windows denied symlink creation. Enable Developer Mode or set `windows-mode` to `junction`/`copy`. |
 
 ### Windows compatibility
 
 On Windows, creating symlinks requires either Administrator privileges or that
-the system is running in Developer Mode. The plugin itself works, but the
-underlying operating system may refuse to create a link if permissions are
-insufficient. Additionally, relative symlinks use Unix-style `/` separators
+the system is running in Developer Mode. When native symlinks are not
+available, the plugin falls back automatically (default `windows-mode` value)
+to NTFS junctions for directories and hardlinks/copies for files. You can opt
+into different behaviours by setting `extra.somework/composer-symlinks.windows-mode`
+to one of:
+
+* `symlink` – always attempt a real symlink. Failures explicitly mention
+  enabling Developer Mode or switching to a fallback strategy.
+* `junction` (default) – try a symlink first, then use junctions for directories
+  and hardlinks/copies for files when permissions prevent symlink creation.
+* `copy` – skip symlinks altogether and mirror the target contents at the link
+  path.
+
+Regardless of the chosen mode, relative symlinks use Unix-style `/` separators
 internally which Windows resolves correctly.
 
 License

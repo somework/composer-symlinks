@@ -7,8 +7,13 @@ class Symlink
 {
     protected string $target = '';
     protected string $link = '';
+    public const WINDOWS_MODE_SYMLINK = 'symlink';
+    public const WINDOWS_MODE_JUNCTION = 'junction';
+    public const WINDOWS_MODE_COPY = 'copy';
+
     protected bool $absolutePath = false;
     protected bool $forceCreate = false;
+    protected string $windowsMode = self::WINDOWS_MODE_JUNCTION;
 
     public function getTarget(): string
     {
@@ -51,6 +56,18 @@ class Symlink
     public function setForceCreate(bool $forceCreate): Symlink
     {
         $this->forceCreate = $forceCreate;
+        return $this;
+    }
+
+    public function getWindowsMode(): string
+    {
+        return $this->windowsMode;
+    }
+
+    public function setWindowsMode(string $windowsMode): self
+    {
+        $this->windowsMode = $windowsMode;
+
         return $this;
     }
 }

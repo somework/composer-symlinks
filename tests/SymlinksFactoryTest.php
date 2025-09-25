@@ -46,6 +46,7 @@ class SymlinksFactoryTest extends TestCase
         $this->assertSame(realpath($tmp . '/target/file.txt'), $symlink->getTarget());
         $this->assertSame($tmp . '/link.txt', $symlink->getLink());
         $this->assertTrue($symlink->isAbsolutePath());
+        $this->assertSame(\SomeWork\Symlinks\Symlink::WINDOWS_MODE_JUNCTION, $symlink->getWindowsMode());
 
         chdir($cwd);
     }
@@ -535,5 +536,114 @@ class SymlinksFactoryTest extends TestCase
         $this->assertSame($tmp . '/build/vendor/package/link.txt', $symlinks[0]->getLink());
 
         chdir($cwd);
+    }
+
+    public function testProcessAllowsConfiguringWindowsMode(): void
+    {
+        $tmp = sys_get_temp_dir() . '/factory_' . uniqid();
+        mkdir($tmp);
+        mkdir($tmp . '/target');
+        file_put_contents($tmp . '/target/file.txt', 'content');
+        $cwd = getcwd();
+        chdir($tmp);
+
+        $composer = new Composer();
+        $dispatcher = new EventDispatcher($composer, new NullIO());
+        $composer->setEventDispatcher($dispatcher);
+        $package = new RootPackage('test/test', '1.0.0', '1.0.0');
+        $package->setExtra([
+            'somework/composer-symlinks' => [
+                'windows-mode' => 'copy',
+                'symlinks' => [
+                    'target/file.txt' => [
+                        'link' => 'link.txt',
+                        'windows-mode' => 'symlink'
+                    ]
+                ]
+            ]
+        ]);
+        $composer->setPackage($package);
+
+        $event = new Event('post-install-cmd', $composer, new NullIO());
+        $factory = new SymlinksFactory($event, new Filesystem());
+        $symlinks = $factory->process();
+
+        $this->assertCount(1, $symlinks);
+        $symlink = $symlinks[0];
+        $this->assertSame(\SomeWork\Symlinks\Symlink::WINDOWS_MODE_SYMLINK, $symlink->getWindowsMode());
+
+        chdir($cwd);
+    }
+
+    public function testProcessRejectsInvalidWindowsMode(): void
+    {
+        $tmp = sys_get_temp_dir() . '/factory_' . uniqid();
+        mkdir($tmp);
+        mkdir($tmp . '/target');
+        file_put_contents($tmp . '/target/file.txt', 'content');
+        $cwd = getcwd();
+        chdir($tmp);
+
+        $composer = new Composer();
+        $dispatcher = new EventDispatcher($composer, new NullIO());
+        $composer->setEventDispatcher($dispatcher);
+        $package = new RootPackage('test/test', '1.0.0', '1.0.0');
+        $package->setExtra([
+            'somework/composer-symlinks' => [
+                'windows-mode' => 'invalid',
+                'symlinks' => [
+                    'target/file.txt' => 'link.txt'
+                ]
+            ]
+        ]);
+        $composer->setPackage($package);
+
+        $event = new Event('post-install-cmd', $composer, new NullIO());
+        $factory = new SymlinksFactory($event, new Filesystem());
+
+        $this->expectException(\SomeWork\Symlinks\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Unknown windows-mode');
+
+        try {
+            $factory->process();
+        } finally {
+            chdir($cwd);
+        }
+    }
+
+    public function testProcessRejectsNonScalarWindowsMode(): void
+    {
+        $tmp = sys_get_temp_dir() . '/factory_' . uniqid();
+        mkdir($tmp);
+        mkdir($tmp . '/target');
+        file_put_contents($tmp . '/target/file.txt', 'content');
+        $cwd = getcwd();
+        chdir($tmp);
+
+        $composer = new Composer();
+        $dispatcher = new EventDispatcher($composer, new NullIO());
+        $composer->setEventDispatcher($dispatcher);
+        $package = new RootPackage('test/test', '1.0.0', '1.0.0');
+        $package->setExtra([
+            'somework/composer-symlinks' => [
+                'windows-mode' => ['array'],
+                'symlinks' => [
+                    'target/file.txt' => 'link.txt'
+                ]
+            ]
+        ]);
+        $composer->setPackage($package);
+
+        $event = new Event('post-install-cmd', $composer, new NullIO());
+        $factory = new SymlinksFactory($event, new Filesystem());
+
+        $this->expectException(\SomeWork\Symlinks\InvalidArgumentException::class);
+        $this->expectExceptionMessage('The config option windows-mode must be a string or scalar value.');
+
+        try {
+            $factory->process();
+        } finally {
+            chdir($cwd);
+        }
     }
 }
