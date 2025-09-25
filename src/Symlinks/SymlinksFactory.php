@@ -93,21 +93,35 @@ class SymlinksFactory
             throw new InvalidArgumentException('No target passed in config');
         }
 
-        if ($this->fileSystem->isAbsolutePath($target)) {
+        [$target, $targetExpanded] = $this->expandPathPlaceholders($target);
+        [$link, $linkExpanded] = $this->expandPathPlaceholders($link);
+
+        $targetIsAbsolute = $this->fileSystem->isAbsolutePath($target);
+        if ($targetIsAbsolute && !$targetExpanded) {
             throw new InvalidArgumentException(
                 sprintf('Invalid symlink target path %s. It must be relative', $target)
             );
         }
 
-        if ($this->fileSystem->isAbsolutePath($link)) {
+        $linkIsAbsolute = $this->fileSystem->isAbsolutePath($link);
+        if ($linkIsAbsolute && !$linkExpanded) {
             throw new InvalidArgumentException(
                 sprintf('Invalid symlink link path %s. It must be relative', $link)
             );
         }
 
         $currentDirectory = realpath(getcwd());
-        $targetPath = realpath($currentDirectory . DIRECTORY_SEPARATOR . $target);
-        $linkPath = $currentDirectory . DIRECTORY_SEPARATOR . $link;
+        if ($targetIsAbsolute) {
+            $targetPath = realpath($target);
+        } else {
+            $targetPath = realpath($currentDirectory . DIRECTORY_SEPARATOR . $target);
+        }
+
+        if ($linkIsAbsolute) {
+            $linkPath = $link;
+        } else {
+            $linkPath = $currentDirectory . DIRECTORY_SEPARATOR . $link;
+        }
 
         if ($targetPath === false || (!is_dir($targetPath) && !is_file($targetPath))) {
             if ($this->getConfig(static::SKIP_MISSING_TARGET, $linkData)) {
@@ -178,5 +192,92 @@ class SymlinksFactory
             $link = $linkData;
         }
         return $link;
+    }
+
+    /**
+     * @return array{0: string, 1: bool}
+     */
+    private function expandPathPlaceholders(string $path): array
+    {
+        $wasExpanded = false;
+
+        [$projectDir, $vendorDir] = [$this->getProjectDir(), $this->getVendorDir()];
+
+        if ($projectDir !== null) {
+            $path = str_replace('%project-dir%', $projectDir, $path, $count);
+            if ($count > 0) {
+                $wasExpanded = true;
+            }
+        }
+
+        if ($vendorDir !== null) {
+            $path = str_replace('%vendor-dir%', $vendorDir, $path, $count);
+            if ($count > 0) {
+                $wasExpanded = true;
+            }
+        }
+
+        $path = preg_replace_callback('/%env\(([^)]+)\)%/', function (array $matches) use (&$wasExpanded): string {
+            $wasExpanded = true;
+            $value = getenv($matches[1]);
+            if ($value === false) {
+                return '';
+            }
+            return $value;
+        }, $path);
+
+        if (!\is_string($path)) {
+            $path = '';
+        }
+
+        return [$path, $wasExpanded];
+    }
+
+    private function getProjectDir(): ?string
+    {
+        $cwd = getcwd();
+        if ($cwd === false) {
+            return null;
+        }
+
+        $path = realpath($cwd);
+
+        return $path === false ? $cwd : $path;
+    }
+
+    private function getVendorDir(): ?string
+    {
+        $composer = $this->event->getComposer();
+        $vendorDir = null;
+
+        if ($composer !== null) {
+            try {
+                $config = $composer->getConfig();
+            } catch (\TypeError $exception) {
+                $config = null;
+            }
+
+            if ($config !== null) {
+                $vendorDir = $config->get('vendor-dir');
+            }
+        }
+
+        if (!$vendorDir) {
+            $projectDir = $this->getProjectDir();
+            if ($projectDir === null) {
+                return null;
+            }
+            $vendorDir = $projectDir . DIRECTORY_SEPARATOR . 'vendor';
+        }
+
+        if (!$this->fileSystem->isAbsolutePath($vendorDir)) {
+            $projectDir = $this->getProjectDir();
+            if ($projectDir !== null) {
+                $combined = $projectDir . DIRECTORY_SEPARATOR . $vendorDir;
+                $vendorDir = realpath($combined) ?: $combined;
+            }
+        }
+
+        return $vendorDir;
     }
 }

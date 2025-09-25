@@ -28,8 +28,8 @@ The behaviour of the plugin can be tuned via the following configuration keys:
 | `throw-exception` | `true` | Throw an exception on errors instead of just printing the message. |
 | `force-create` | `false` | Remove any existing file or directory at the link path before creating the symlink. |
 
-You can set personal configs for any symlink.  
-For personal configs `link` must be defined  
+You can set personal configs for any symlink.
+For personal configs `link` must be defined
 
 ```json
 {
@@ -52,6 +52,21 @@ For personal configs `link` must be defined
     }
 }
 ```
+
+### Placeholder syntax
+
+Symlink paths support the following placeholders which are expanded before
+validation:
+
+| Placeholder | Description |
+|-------------|-------------|
+| `%project-dir%` | Absolute path to the project root (current working directory during Composer execution). |
+| `%vendor-dir%` | Absolute path to the Composer vendor directory. |
+| `%env(NAME)%` | Value of the environment variable `NAME`. Missing variables expand to an empty string. |
+
+Placeholders allow the resulting paths to be absolute while the original
+configuration remains portable. Direct absolute paths without placeholders are
+still rejected by default to avoid accidental misuse.
 
 ### 2. Refresh symlinks
 

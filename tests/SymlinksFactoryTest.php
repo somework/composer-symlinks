@@ -3,6 +3,7 @@
 namespace SomeWork\Symlinks\Tests;
 
 use Composer\Composer;
+use Composer\Config;
 use Composer\EventDispatcher\EventDispatcher;
 use Composer\IO\NullIO;
 use Composer\Package\RootPackage;
@@ -379,5 +380,160 @@ class SymlinksFactoryTest extends TestCase
         } finally {
             chdir($cwd);
         }
+    }
+
+    public function testProcessExpandsProjectDirAndEnvPlaceholders(): void
+    {
+        $tmp = sys_get_temp_dir() . '/factory_' . uniqid();
+        mkdir($tmp);
+        mkdir($tmp . '/env-dir');
+        file_put_contents($tmp . '/env-dir/file.txt', 'content');
+        mkdir($tmp . '/links');
+        $cwd = getcwd();
+        chdir($tmp);
+
+        putenv('SYMLINKS_CUSTOM_DIR=' . $tmp . '/env-dir');
+
+        $composer = new Composer();
+        $dispatcher = new EventDispatcher($composer, new NullIO());
+        $composer->setEventDispatcher($dispatcher);
+        $package = new RootPackage('test/test', '1.0.0', '1.0.0');
+        $package->setExtra([
+            'somework/composer-symlinks' => [
+                'symlinks' => [
+                    '%env(SYMLINKS_CUSTOM_DIR)%/file.txt' => '%project-dir%/links/env-link.txt'
+                ]
+            ]
+        ]);
+        $composer->setPackage($package);
+
+        $event = new Event('post-install-cmd', $composer, new NullIO());
+        $factory = new SymlinksFactory($event, new Filesystem());
+        $symlinks = $factory->process();
+
+        $this->assertCount(1, $symlinks);
+        $this->assertSame(realpath($tmp . '/env-dir/file.txt'), $symlinks[0]->getTarget());
+        $this->assertSame($tmp . '/links/env-link.txt', $symlinks[0]->getLink());
+
+        putenv('SYMLINKS_CUSTOM_DIR');
+        chdir($cwd);
+    }
+
+    public function testProcessHandlesEmptyEnvPlaceholderExpansion(): void
+    {
+        $tmp = sys_get_temp_dir() . '/factory_' . uniqid();
+        mkdir($tmp);
+        mkdir($tmp . '/target', 0777, true);
+        file_put_contents($tmp . '/target/file.txt', 'content');
+        mkdir($tmp . '/links', 0777, true);
+        $cwd = getcwd();
+        chdir($tmp);
+
+        $previousValue = getenv('SYMLINKS_OPTIONAL_SEGMENT');
+        putenv('SYMLINKS_OPTIONAL_SEGMENT');
+
+        $composer = new Composer();
+        $dispatcher = new EventDispatcher($composer, new NullIO());
+        $composer->setEventDispatcher($dispatcher);
+        $package = new RootPackage('test/test', '1.0.0', '1.0.0');
+        $package->setExtra([
+            'somework/composer-symlinks' => [
+                'symlinks' => [
+                    'target/%env(SYMLINKS_OPTIONAL_SEGMENT)%file.txt' => 'links/%env(SYMLINKS_OPTIONAL_SEGMENT)%file-link.txt'
+                ]
+            ]
+        ]);
+        $composer->setPackage($package);
+
+        $event = new Event('post-install-cmd', $composer, new NullIO());
+        $factory = new SymlinksFactory($event, new Filesystem());
+        $symlinks = $factory->process();
+
+        $this->assertCount(1, $symlinks);
+        $this->assertSame(realpath($tmp . '/target/file.txt'), $symlinks[0]->getTarget());
+        $this->assertSame($tmp . '/links/file-link.txt', $symlinks[0]->getLink());
+
+        if ($previousValue === false) {
+            putenv('SYMLINKS_OPTIONAL_SEGMENT');
+        } else {
+            putenv('SYMLINKS_OPTIONAL_SEGMENT=' . $previousValue);
+        }
+
+        chdir($cwd);
+    }
+
+    public function testProcessExpandsVendorDirPlaceholder(): void
+    {
+        $tmp = sys_get_temp_dir() . '/factory_' . uniqid();
+        mkdir($tmp);
+        mkdir($tmp . '/target');
+        file_put_contents($tmp . '/target/file.txt', 'content');
+        $vendorDir = $tmp . '/custom-vendor';
+        mkdir($vendorDir);
+        $cwd = getcwd();
+        chdir($tmp);
+
+        $composer = new Composer();
+        $config = new Config(false, $tmp);
+        $config->merge(['config' => ['vendor-dir' => $vendorDir]]);
+        $composer->setConfig($config);
+        $dispatcher = new EventDispatcher($composer, new NullIO());
+        $composer->setEventDispatcher($dispatcher);
+        $package = new RootPackage('test/test', '1.0.0', '1.0.0');
+        $package->setExtra([
+            'somework/composer-symlinks' => [
+                'symlinks' => [
+                    'target/file.txt' => '%vendor-dir%/package/link.txt'
+                ]
+            ]
+        ]);
+        $composer->setPackage($package);
+
+        $event = new Event('post-install-cmd', $composer, new NullIO());
+        $factory = new SymlinksFactory($event, new Filesystem());
+        $symlinks = $factory->process();
+
+        $this->assertCount(1, $symlinks);
+        $this->assertSame(realpath($tmp . '/target/file.txt'), $symlinks[0]->getTarget());
+        $this->assertSame($vendorDir . '/package/link.txt', $symlinks[0]->getLink());
+
+        chdir($cwd);
+    }
+
+    public function testProcessExpandsVendorDirPlaceholderWithRelativeConfig(): void
+    {
+        $tmp = sys_get_temp_dir() . '/factory_' . uniqid();
+        mkdir($tmp);
+        mkdir($tmp . '/target');
+        file_put_contents($tmp . '/target/file.txt', 'content');
+        mkdir($tmp . '/build/vendor', 0777, true);
+        $cwd = getcwd();
+        chdir($tmp);
+
+        $composer = new Composer();
+        $config = new Config(false, $tmp);
+        $config->merge(['config' => ['vendor-dir' => 'build/vendor']]);
+        $composer->setConfig($config);
+        $dispatcher = new EventDispatcher($composer, new NullIO());
+        $composer->setEventDispatcher($dispatcher);
+        $package = new RootPackage('test/test', '1.0.0', '1.0.0');
+        $package->setExtra([
+            'somework/composer-symlinks' => [
+                'symlinks' => [
+                    'target/file.txt' => '%vendor-dir%/package/link.txt'
+                ]
+            ]
+        ]);
+        $composer->setPackage($package);
+
+        $event = new Event('post-install-cmd', $composer, new NullIO());
+        $factory = new SymlinksFactory($event, new Filesystem());
+        $symlinks = $factory->process();
+
+        $this->assertCount(1, $symlinks);
+        $this->assertSame(realpath($tmp . '/target/file.txt'), $symlinks[0]->getTarget());
+        $this->assertSame($tmp . '/build/vendor/package/link.txt', $symlinks[0]->getLink());
+
+        chdir($cwd);
     }
 }
