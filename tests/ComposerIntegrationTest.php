@@ -70,29 +70,27 @@ class ComposerIntegrationTest extends TestCase
         $this->assertSame(0, $code, implode("\n", $output));
 
         $linkA = $tmp . DIRECTORY_SEPARATOR . 'linkA.txt';
-        $this->assertTrue(is_link($linkA));
-        $this->assertSame(
-            realpath($tmp . DIRECTORY_SEPARATOR . 'sourceA' . DIRECTORY_SEPARATOR . 'fileA.txt'),
-            $this->resolveLinkTarget($linkA, $tmp)
+        $this->assertLinkOrMirror(
+            $linkA,
+            $tmp . DIRECTORY_SEPARATOR . 'sourceA' . DIRECTORY_SEPARATOR . 'fileA.txt',
+            $tmp,
+            true
         );
-        $linkATarget = readlink($linkA);
-        $this->assertNotFalse($linkATarget);
-        $this->assertNotSame('/', substr($linkATarget, 0, 1));
 
         $linkB = $tmp . DIRECTORY_SEPARATOR . 'linkB.txt';
-        $this->assertTrue(is_link($linkB));
-        $this->assertSame(
-            realpath($tmp . DIRECTORY_SEPARATOR . 'sourceB' . DIRECTORY_SEPARATOR . 'fileB.txt'),
-            $this->resolveLinkTarget($linkB, $tmp)
+        $this->assertLinkOrMirror(
+            $linkB,
+            $tmp . DIRECTORY_SEPARATOR . 'sourceB' . DIRECTORY_SEPARATOR . 'fileB.txt',
+            $tmp
         );
 
         $this->assertFalse(file_exists($tmp . DIRECTORY_SEPARATOR . 'missingLink.txt'));
 
         $replaceLink = $tmp . DIRECTORY_SEPARATOR . 'replaceLink.txt';
-        $this->assertTrue(is_link($replaceLink));
-        $this->assertSame(
-            realpath($tmp . DIRECTORY_SEPARATOR . 'sourceC' . DIRECTORY_SEPARATOR . 'fileC.txt'),
-            $this->resolveLinkTarget($replaceLink, $tmp)
+        $this->assertLinkOrMirror(
+            $replaceLink,
+            $tmp . DIRECTORY_SEPARATOR . 'sourceC' . DIRECTORY_SEPARATOR . 'fileC.txt',
+            $tmp
         );
     }
 
@@ -187,8 +185,8 @@ class ComposerIntegrationTest extends TestCase
         chdir($cwd);
 
         $this->assertSame(0, $code, implode("\n", $output));
-        $this->assertTrue(is_link($tmp . DIRECTORY_SEPARATOR . 'linkA.txt'));
-        $this->assertTrue(is_link($tmp . DIRECTORY_SEPARATOR . 'linkB.txt'));
+        $this->assertLinkExists($tmp . DIRECTORY_SEPARATOR . 'linkA.txt');
+        $this->assertLinkExists($tmp . DIRECTORY_SEPARATOR . 'linkB.txt');
 
         $registryPath = $tmp . DIRECTORY_SEPARATOR . 'vendor/composer-symlinks-state.json';
         $this->assertFileExists($registryPath);
@@ -206,7 +204,7 @@ class ComposerIntegrationTest extends TestCase
         chdir($cwd);
 
         $this->assertSame(0, $code, implode("\n", $output));
-        $this->assertTrue(is_link($tmp . DIRECTORY_SEPARATOR . 'linkA.txt'));
+        $this->assertLinkExists($tmp . DIRECTORY_SEPARATOR . 'linkA.txt');
         $this->assertFalse(file_exists($tmp . DIRECTORY_SEPARATOR . 'linkB.txt'));
 
         $registry = json_decode((string)file_get_contents($registryPath), true);
@@ -215,9 +213,9 @@ class ComposerIntegrationTest extends TestCase
         $this->assertArrayNotHasKey($this->normalizePath($tmp . '/linkB.txt'), $registry);
     }
 
-    private function resolveLinkTarget(string $link, string $baseDir): string
+    private function resolveLinkTarget(string $link, string $baseDir, ?string $linkTarget = null): string
     {
-        $target = readlink($link);
+        $target = $linkTarget ?? readlink($link);
         $this->assertNotFalse($target);
 
         $normalized = $this->normalizePath($target);
@@ -238,6 +236,61 @@ class ComposerIntegrationTest extends TestCase
         $this->assertNotFalse($resolved);
 
         return $resolved;
+    }
+
+    private function assertLinkOrMirror(string $link, string $target, string $baseDir, bool $expectRelative = false): void
+    {
+        if (DIRECTORY_SEPARATOR === '\\') {
+            if (!is_link($link)) {
+                $this->assertFileMirrors($target, $link);
+
+                return;
+            }
+
+            $linkTarget = @readlink($link);
+            if ($linkTarget === false) {
+                $this->assertFileMirrors($target, $link);
+
+                return;
+            }
+        } else {
+            $this->assertTrue(is_link($link));
+            $linkTarget = readlink($link);
+            $this->assertNotFalse($linkTarget);
+        }
+
+        $this->assertTrue(is_link($link));
+
+        if ($expectRelative) {
+            $this->assertNotSame('/', substr($linkTarget, 0, 1));
+        }
+
+        $this->assertSame(
+            realpath($target),
+            $this->resolveLinkTarget($link, $baseDir, $linkTarget)
+        );
+    }
+
+    private function assertLinkExists(string $path): void
+    {
+        if (DIRECTORY_SEPARATOR === '\\' && !is_link($path)) {
+            $this->assertFileExists($path);
+
+            return;
+        }
+
+        $this->assertTrue(is_link($path));
+    }
+
+    private function assertFileMirrors(string $target, string $path): void
+    {
+        $this->assertFileExists($path);
+        $targetContents = file_get_contents($target);
+        $pathContents = file_get_contents($path);
+
+        $this->assertNotFalse($targetContents);
+        $this->assertNotFalse($pathContents);
+        $this->assertSame($targetContents, $pathContents);
     }
 
     private function normalizePath(string $path): string

@@ -27,12 +27,9 @@ class SymlinksProcessorTest extends TestCase
         $result = $processor->processSymlink($symlink);
 
         $this->assertTrue($result);
-        if (DIRECTORY_SEPARATOR === '\\' && !is_link($link)) {
-            $this->assertFileMirrorsTarget($target, $link);
-        } else {
-            $this->assertTrue(is_link($link));
-            $this->assertSame(realpath($target), $this->resolveLinkTarget($link));
-        }
+        $this->assertLinkOrMirror($target, $link, function (string $linkPath) use ($target): string {
+            return $this->resolveLinkTarget($linkPath);
+        });
     }
 
     public function testDryRunDoesNotCreateLink(): void
@@ -84,12 +81,9 @@ class SymlinksProcessorTest extends TestCase
         $result = $processor->processSymlink($symlink);
 
         $this->assertTrue($result);
-        if (DIRECTORY_SEPARATOR === '\\' && !is_link($link)) {
-            $this->assertFileMirrorsTarget($target, $link);
-        } else {
-            $this->assertTrue(is_link($link));
-            $this->assertSame(realpath($target), $this->resolveLinkTarget($link));
-        }
+        $this->assertLinkOrMirror($target, $link, function (string $linkPath) use ($target): string {
+            return $this->resolveLinkTarget($linkPath);
+        });
     }
 
     public function testThrowsErrorWhenLinkExists(): void
@@ -152,12 +146,9 @@ class SymlinksProcessorTest extends TestCase
         $result = $processor->processSymlink($symlink);
 
         $this->assertTrue($result);
-        if (DIRECTORY_SEPARATOR === '\\' && !is_link($link)) {
-            $this->assertFileMirrorsTarget($target, $link);
-        } else {
-            $this->assertTrue(is_link($link));
-            $this->assertSame(realpath($target), $this->resolveRelativeLinkTarget($link));
-        }
+        $this->assertLinkOrMirror($target, $link, function (string $linkPath) use ($target): string {
+            return $this->resolveRelativeLinkTarget($linkPath);
+        });
     }
 
     /**
@@ -263,6 +254,28 @@ class SymlinksProcessorTest extends TestCase
             $filesystem = new Filesystem();
             $filesystem->removeDirectory($tmp);
         }
+    }
+
+    private function assertLinkOrMirror(string $target, string $link, callable $resolver): void
+    {
+        if (DIRECTORY_SEPARATOR === '\\') {
+            if (!is_link($link)) {
+                $this->assertFileMirrorsTarget($target, $link);
+
+                return;
+            }
+
+            if (@readlink($link) === false) {
+                $this->assertFileMirrorsTarget($target, $link);
+
+                return;
+            }
+        } else {
+            $this->assertTrue(is_link($link));
+        }
+
+        $this->assertTrue(is_link($link));
+        $this->assertSame(realpath($target), $resolver($link));
     }
 
     private function assertFileMirrorsTarget(string $target, string $link): void

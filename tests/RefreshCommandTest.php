@@ -35,22 +35,7 @@ class RefreshCommandTest extends TestCase
 
         $link = $tmp . DIRECTORY_SEPARATOR . 'link.txt';
 
-        $this->assertTrue(is_link($link));
-
-        $linkTarget = readlink($link);
-        $this->assertNotFalse($linkTarget);
-        $normalizedLinkTarget = $this->normalizePath($linkTarget);
-
-        $resolvedLinkTarget = $this->isAbsolutePath($normalizedLinkTarget)
-            ? realpath($normalizedLinkTarget)
-            : realpath(dirname($link) . DIRECTORY_SEPARATOR . $normalizedLinkTarget);
-
-        $this->assertNotFalse($resolvedLinkTarget);
-
-        $this->assertSame(
-            realpath($tmp . DIRECTORY_SEPARATOR . 'source' . DIRECTORY_SEPARATOR . 'file.txt'),
-            $resolvedLinkTarget
-        );
+        $this->assertLinkOrMirror($link, $tmp . DIRECTORY_SEPARATOR . 'source' . DIRECTORY_SEPARATOR . 'file.txt');
 
         chdir($cwd);
     }
@@ -111,6 +96,40 @@ class RefreshCommandTest extends TestCase
         $tester->execute(array_merge(['command' => 'symlinks:refresh'], $input));
     }
 
+    private function assertLinkOrMirror(string $link, string $target): void
+    {
+        if (DIRECTORY_SEPARATOR === '\\') {
+            if (!is_link($link)) {
+                $this->assertFileMirrors($target, $link);
+
+                return;
+            }
+
+            $linkTarget = @readlink($link);
+            if ($linkTarget === false) {
+                $this->assertFileMirrors($target, $link);
+
+                return;
+            }
+        } else {
+            $this->assertTrue(is_link($link));
+            $linkTarget = readlink($link);
+            $this->assertNotFalse($linkTarget);
+        }
+
+        $this->assertTrue(is_link($link));
+
+        $normalizedLinkTarget = $this->normalizePath($linkTarget);
+
+        $resolvedLinkTarget = $this->isAbsolutePath($normalizedLinkTarget)
+            ? realpath($normalizedLinkTarget)
+            : realpath(dirname($link) . DIRECTORY_SEPARATOR . $normalizedLinkTarget);
+
+        $this->assertNotFalse($resolvedLinkTarget);
+
+        $this->assertSame(realpath($target), $resolvedLinkTarget);
+    }
+
     private function normalizePath(string $path): string
     {
         if (DIRECTORY_SEPARATOR === '\\') {
@@ -118,6 +137,17 @@ class RefreshCommandTest extends TestCase
         }
 
         return $path;
+    }
+
+    private function assertFileMirrors(string $target, string $path): void
+    {
+        $this->assertFileExists($path);
+        $targetContents = file_get_contents($target);
+        $linkContents = file_get_contents($path);
+
+        $this->assertNotFalse($targetContents);
+        $this->assertNotFalse($linkContents);
+        $this->assertSame($targetContents, $linkContents);
     }
 
     private function isAbsolutePath(string $path): bool
