@@ -192,8 +192,9 @@ class ComposerIntegrationTest extends TestCase
         $this->assertFileExists($registryPath);
         $registry = json_decode((string)file_get_contents($registryPath), true);
         $this->assertIsArray($registry);
-        $this->assertArrayHasKey($this->normalizePath($tmp . '/linkA.txt'), $registry);
-        $this->assertArrayHasKey($this->normalizePath($tmp . '/linkB.txt'), $registry);
+        $registry = $this->canonicalizeRegistry($registry);
+        $this->assertArrayHasKey($this->canonicalizePath($tmp . '/linkA.txt'), $registry);
+        $this->assertArrayHasKey($this->canonicalizePath($tmp . '/linkB.txt'), $registry);
 
         unset($composerData['extra']['somework/composer-symlinks']['symlinks']['sourceB/fileB.txt']);
         file_put_contents($tmp . DIRECTORY_SEPARATOR . 'composer.json', json_encode($composerData, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
@@ -209,8 +210,9 @@ class ComposerIntegrationTest extends TestCase
 
         $registry = json_decode((string)file_get_contents($registryPath), true);
         $this->assertIsArray($registry);
-        $this->assertArrayHasKey($this->normalizePath($tmp . '/linkA.txt'), $registry);
-        $this->assertArrayNotHasKey($this->normalizePath($tmp . '/linkB.txt'), $registry);
+        $registry = $this->canonicalizeRegistry($registry);
+        $this->assertArrayHasKey($this->canonicalizePath($tmp . '/linkA.txt'), $registry);
+        $this->assertArrayNotHasKey($this->canonicalizePath($tmp . '/linkB.txt'), $registry);
     }
 
     private function resolveLinkTarget(string $link, string $baseDir, ?string $linkTarget = null): string
@@ -300,6 +302,41 @@ class ComposerIntegrationTest extends TestCase
         }
 
         return $path;
+    }
+
+    /**
+     * @param array<string, string> $registry
+     *
+     * @return array<string, string>
+     */
+    private function canonicalizeRegistry(array $registry): array
+    {
+        if (DIRECTORY_SEPARATOR !== '\\') {
+            return $registry;
+        }
+
+        $canonical = [];
+        foreach ($registry as $link => $target) {
+            $canonical[$this->canonicalizePath($link)] = $target;
+        }
+
+        return $canonical;
+    }
+
+    private function canonicalizePath(string $path): string
+    {
+        if (DIRECTORY_SEPARATOR !== '\\') {
+            return $path;
+        }
+
+        $normalized = $this->normalizePath($path);
+        $resolved = realpath($normalized);
+
+        if ($resolved !== false) {
+            return strtolower($resolved);
+        }
+
+        return strtolower($normalized);
     }
 
     private function isAbsolutePath(string $path): bool
