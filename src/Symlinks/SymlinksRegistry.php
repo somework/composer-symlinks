@@ -110,7 +110,7 @@ class SymlinksRegistry
     private function resolveTarget(string $link, string $fallback): ?string
     {
         if (is_link($link)) {
-            $target = readlink($link);
+            $target = @readlink($link);
             if ($target === false) {
                 return $fallback;
             }

@@ -145,10 +145,15 @@ class SymlinksFactory
             throw new LinkDirectoryError($exception->getMessage(), $exception->getCode(), $exception);
         }
 
-        if (
-            is_link($linkPath) &&
-            realpath(dirname($linkPath) . DIRECTORY_SEPARATOR . readlink($linkPath)) === $targetPath
-        ) {
+        $resolvedLinkTarget = null;
+        if (is_link($linkPath)) {
+            $linkTarget = @readlink($linkPath);
+            if ($linkTarget !== false) {
+                $resolvedLinkTarget = realpath(dirname($linkPath) . DIRECTORY_SEPARATOR . $linkTarget);
+            }
+        }
+
+        if (is_link($linkPath) && $resolvedLinkTarget === $targetPath) {
             $this->registerConfiguredSymlink($linkPath, $targetPath);
             $this->event->getIO()->write(
                 sprintf(
