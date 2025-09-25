@@ -53,6 +53,25 @@ For personal configs `link` must be defined
 }
 ```
 
+### 2. Refresh symlinks
+
+Symlinks are created automatically on `composer install`/`update`, but you can
+trigger the process manually with the built-in command:
+
+```bash
+$ composer symlinks:refresh
+```
+
+Add the `--dry-run` flag to preview the operations without touching the
+filesystem:
+
+```bash
+$ composer symlinks:refresh --dry-run
+```
+
+The legacy environment variable `SYMLINKS_DRY_RUN=1` is still honoured during
+Composer hooks for backwards compatibility.
+
 ### 3. Execute composer
 
 DO NOT use --no-plugins for composer install or update
