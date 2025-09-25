@@ -5,8 +5,8 @@ namespace SomeWork\Symlinks;
 
 use Composer\Composer;
 use Composer\IO\IOInterface;
-use Composer\Plugin\Capable;
 use Composer\Plugin\Capability\CommandProvider as CommandProviderCapability;
+use Composer\Plugin\Capable;
 use Composer\Plugin\PluginInterface;
 use Composer\Script\Event;
 use Composer\Script\ScriptEvents;

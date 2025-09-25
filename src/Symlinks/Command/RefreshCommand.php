@@ -31,7 +31,7 @@ class RefreshCommand extends BaseCommand
         $composer = $this->requireComposer();
         $io = $this->getIO();
 
-        $dryRun = (bool)$input->getOption('dry-run');
+        $dryRun = (bool) $input->getOption('dry-run');
 
         $event = new Event('symlinks:refresh', $composer, $io);
         $filesystem = new Filesystem();
@@ -43,4 +43,3 @@ class RefreshCommand extends BaseCommand
         return Command::SUCCESS;
     }
 }
-

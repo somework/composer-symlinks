@@ -14,4 +14,3 @@ class CommandProvider implements CommandProviderCapability
         ];
     }
 }
-
