@@ -27,8 +27,12 @@ class SymlinksProcessorTest extends TestCase
         $result = $processor->processSymlink($symlink);
 
         $this->assertTrue($result);
-        $this->assertTrue(is_link($link));
-        $this->assertSame(realpath($target), $this->resolveLinkTarget($link));
+        if (DIRECTORY_SEPARATOR === '\\' && !is_link($link)) {
+            $this->assertFileMirrorsTarget($target, $link);
+        } else {
+            $this->assertTrue(is_link($link));
+            $this->assertSame(realpath($target), $this->resolveLinkTarget($link));
+        }
     }
 
     public function testDryRunDoesNotCreateLink(): void
@@ -80,8 +84,12 @@ class SymlinksProcessorTest extends TestCase
         $result = $processor->processSymlink($symlink);
 
         $this->assertTrue($result);
-        $this->assertTrue(is_link($link));
-        $this->assertSame(realpath($target), $this->resolveLinkTarget($link));
+        if (DIRECTORY_SEPARATOR === '\\' && !is_link($link)) {
+            $this->assertFileMirrorsTarget($target, $link);
+        } else {
+            $this->assertTrue(is_link($link));
+            $this->assertSame(realpath($target), $this->resolveLinkTarget($link));
+        }
     }
 
     public function testThrowsErrorWhenLinkExists(): void
@@ -144,8 +152,12 @@ class SymlinksProcessorTest extends TestCase
         $result = $processor->processSymlink($symlink);
 
         $this->assertTrue($result);
-        $this->assertTrue(is_link($link));
-        $this->assertSame(realpath($target), $this->resolveRelativeLinkTarget($link));
+        if (DIRECTORY_SEPARATOR === '\\' && !is_link($link)) {
+            $this->assertFileMirrorsTarget($target, $link);
+        } else {
+            $this->assertTrue(is_link($link));
+            $this->assertSame(realpath($target), $this->resolveRelativeLinkTarget($link));
+        }
     }
 
     /**
@@ -251,6 +263,17 @@ class SymlinksProcessorTest extends TestCase
             $filesystem = new Filesystem();
             $filesystem->removeDirectory($tmp);
         }
+    }
+
+    private function assertFileMirrorsTarget(string $target, string $link): void
+    {
+        $this->assertFileExists($link);
+        $targetContents = file_get_contents($target);
+        $linkContents = file_get_contents($link);
+
+        $this->assertNotFalse($targetContents);
+        $this->assertNotFalse($linkContents);
+        $this->assertSame($targetContents, $linkContents);
     }
 
     private function resolveLinkTarget(string $link): string

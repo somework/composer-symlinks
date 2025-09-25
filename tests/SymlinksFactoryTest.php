@@ -22,6 +22,7 @@ class SymlinksFactoryTest extends TestCase
         file_put_contents($tmp . DIRECTORY_SEPARATOR . 'target' . DIRECTORY_SEPARATOR . 'file.txt', 'content');
         $cwd = getcwd();
         chdir($tmp);
+        $projectDir = $this->getResolvedCwd();
 
         $composer = new Composer();
         $dispatcher = new EventDispatcher($composer, new NullIO());
@@ -44,7 +45,7 @@ class SymlinksFactoryTest extends TestCase
         $this->assertCount(1, $symlinks);
         $symlink = $symlinks[0];
         $this->assertSame(realpath($tmp . DIRECTORY_SEPARATOR . 'target' . DIRECTORY_SEPARATOR . 'file.txt'), $symlink->getTarget());
-        $this->assertSame($this->normalizePath($tmp . '/link.txt'), $symlink->getLink());
+        $this->assertSame($projectDir . DIRECTORY_SEPARATOR . 'link.txt', $symlink->getLink());
         $this->assertTrue($symlink->isAbsolutePath());
         $this->assertSame(\SomeWork\Symlinks\Symlink::WINDOWS_MODE_JUNCTION, $symlink->getWindowsMode());
 
@@ -392,8 +393,11 @@ class SymlinksFactoryTest extends TestCase
         mkdir($tmp . DIRECTORY_SEPARATOR . 'links');
         $cwd = getcwd();
         chdir($tmp);
+        $projectDir = $this->getResolvedCwd();
 
-        putenv('SYMLINKS_CUSTOM_DIR=' . $this->normalizePath($tmp . '/env-dir'));
+        $envDir = realpath($tmp . DIRECTORY_SEPARATOR . 'env-dir');
+        $this->assertNotFalse($envDir);
+        putenv('SYMLINKS_CUSTOM_DIR=' . $envDir);
 
         $composer = new Composer();
         $dispatcher = new EventDispatcher($composer, new NullIO());
@@ -414,7 +418,7 @@ class SymlinksFactoryTest extends TestCase
 
         $this->assertCount(1, $symlinks);
         $this->assertSame(realpath($tmp . DIRECTORY_SEPARATOR . 'env-dir' . DIRECTORY_SEPARATOR . 'file.txt'), $symlinks[0]->getTarget());
-        $this->assertSame($this->normalizePath($tmp . '/links/env-link.txt'), $symlinks[0]->getLink());
+        $this->assertSame($projectDir . '/links/env-link.txt', $symlinks[0]->getLink());
 
         putenv('SYMLINKS_CUSTOM_DIR');
         chdir($cwd);
@@ -429,6 +433,7 @@ class SymlinksFactoryTest extends TestCase
         mkdir($tmp . DIRECTORY_SEPARATOR . 'links', 0777, true);
         $cwd = getcwd();
         chdir($tmp);
+        $projectDir = $this->getResolvedCwd();
 
         $previousValue = getenv('SYMLINKS_OPTIONAL_SEGMENT');
         putenv('SYMLINKS_OPTIONAL_SEGMENT');
@@ -452,7 +457,7 @@ class SymlinksFactoryTest extends TestCase
 
         $this->assertCount(1, $symlinks);
         $this->assertSame(realpath($tmp . DIRECTORY_SEPARATOR . 'target' . DIRECTORY_SEPARATOR . 'file.txt'), $symlinks[0]->getTarget());
-        $this->assertSame($this->normalizePath($tmp . '/links/file-link.txt'), $symlinks[0]->getLink());
+        $this->assertSame($projectDir . DIRECTORY_SEPARATOR . 'links/file-link.txt', $symlinks[0]->getLink());
 
         if ($previousValue === false) {
             putenv('SYMLINKS_OPTIONAL_SEGMENT');
@@ -473,7 +478,6 @@ class SymlinksFactoryTest extends TestCase
         mkdir($vendorDir);
         $cwd = getcwd();
         chdir($tmp);
-
         $composer = new Composer();
         $config = new Config(false, $tmp);
         $config->merge(['config' => ['vendor-dir' => $vendorDir]]);
@@ -496,7 +500,9 @@ class SymlinksFactoryTest extends TestCase
 
         $this->assertCount(1, $symlinks);
         $this->assertSame(realpath($tmp . '/target/file.txt'), $symlinks[0]->getTarget());
-        $this->assertSame($this->normalizePath($vendorDir . '/package/link.txt'), $symlinks[0]->getLink());
+        $vendorDirReal = realpath($vendorDir);
+        $this->assertNotFalse($vendorDirReal);
+        $this->assertSame($vendorDirReal . '/package/link.txt', $symlinks[0]->getLink());
 
         chdir($cwd);
     }
@@ -510,6 +516,7 @@ class SymlinksFactoryTest extends TestCase
         mkdir($tmp . DIRECTORY_SEPARATOR . 'build' . DIRECTORY_SEPARATOR . 'vendor', 0777, true);
         $cwd = getcwd();
         chdir($tmp);
+        $projectDir = $this->getResolvedCwd();
 
         $composer = new Composer();
         $config = new Config(false, $tmp);
@@ -533,7 +540,9 @@ class SymlinksFactoryTest extends TestCase
 
         $this->assertCount(1, $symlinks);
         $this->assertSame(realpath($tmp . '/target/file.txt'), $symlinks[0]->getTarget());
-        $this->assertSame($this->normalizePath($tmp . '/build/vendor/package/link.txt'), $symlinks[0]->getLink());
+        $vendorDirReal = realpath($projectDir . DIRECTORY_SEPARATOR . 'build' . DIRECTORY_SEPARATOR . 'vendor');
+        $this->assertNotFalse($vendorDirReal);
+        $this->assertSame($vendorDirReal . '/package/link.txt', $symlinks[0]->getLink());
 
         chdir($cwd);
     }
@@ -645,6 +654,16 @@ class SymlinksFactoryTest extends TestCase
         } finally {
             chdir($cwd);
         }
+    }
+
+    private function getResolvedCwd(): string
+    {
+        $cwd = getcwd();
+        $this->assertNotFalse($cwd);
+
+        $resolved = realpath($cwd);
+
+        return $resolved === false ? $cwd : $resolved;
     }
 
     private function normalizePath(string $path): string
