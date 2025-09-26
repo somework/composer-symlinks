@@ -52,6 +52,195 @@ class SymlinksFactoryTest extends TestCase
         chdir($cwd);
     }
 
+    public function testProcessSkipsSymlinkWhenConditionsDoNotMatch(): void
+    {
+        $tmp = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'factory_' . uniqid();
+        mkdir($tmp);
+        mkdir($tmp . DIRECTORY_SEPARATOR . 'target');
+        file_put_contents($tmp . DIRECTORY_SEPARATOR . 'target' . DIRECTORY_SEPARATOR . 'file.txt', 'content');
+        $cwd = getcwd();
+        chdir($tmp);
+
+        $composer = new Composer();
+        $dispatcher = new EventDispatcher($composer, new NullIO());
+        $composer->setEventDispatcher($dispatcher);
+        $package = new RootPackage('test/test', '1.0.0', '1.0.0');
+        $package->setExtra([
+            'somework/composer-symlinks' => [
+                'symlinks' => [
+                    'target/file.txt' => [
+                        'link' => 'link.txt',
+                        'conditions' => [
+                            'env' => [
+                                'SYMLINKS_TEST_ENV' => 'enabled'
+                            ]
+                        ]
+                    ]
+                ]
+            ]
+        ]);
+        $composer->setPackage($package);
+
+        putenv('SYMLINKS_TEST_ENV');
+
+        $event = new Event('post-install-cmd', $composer, new NullIO());
+        $factory = new SymlinksFactory($event, new Filesystem());
+        $symlinks = $factory->process();
+
+        $this->assertCount(0, $symlinks);
+
+        chdir($cwd);
+    }
+
+    public function testProcessCreatesSymlinkWhenConditionsMatch(): void
+    {
+        $tmp = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'factory_' . uniqid();
+        mkdir($tmp);
+        mkdir($tmp . DIRECTORY_SEPARATOR . 'target');
+        file_put_contents($tmp . DIRECTORY_SEPARATOR . 'target' . DIRECTORY_SEPARATOR . 'file.txt', 'content');
+        $cwd = getcwd();
+        chdir($tmp);
+
+        $osFamily = strtolower(PHP_OS_FAMILY);
+        $phpVersion = PHP_VERSION;
+        $parts = explode('.', $phpVersion);
+        $phpConstraint = sprintf('^%s.%s', $parts[0] ?? '0', $parts[1] ?? '0');
+
+        putenv('SYMLINKS_TEST_CI=1');
+        putenv('SYMLINKS_TEST_PROFILE=prod');
+
+        $composer = new Composer();
+        $dispatcher = new EventDispatcher($composer, new NullIO());
+        $composer->setEventDispatcher($dispatcher);
+        $package = new RootPackage('test/test', '1.0.0', '1.0.0');
+        $package->setExtra([
+            'somework/composer-symlinks' => [
+                'symlinks' => [
+                    'target/file.txt' => [
+                        'link' => 'link.txt',
+                        'absolute-path' => true,
+                        'conditions' => [
+                            'os' => [$osFamily],
+                            'env' => [
+                                'SYMLINKS_TEST_CI' => true,
+                                'SYMLINKS_TEST_PROFILE' => ['prod', 'release']
+                            ],
+                            'php-version' => [$phpConstraint]
+                        ]
+                    ]
+                ]
+            ]
+        ]);
+        $composer->setPackage($package);
+
+        $event = new Event('post-install-cmd', $composer, new NullIO());
+        $factory = new SymlinksFactory($event, new Filesystem());
+        $symlinks = $factory->process();
+
+        $this->assertCount(1, $symlinks);
+        $symlink = $symlinks[0];
+        $this->assertSame(realpath($tmp . DIRECTORY_SEPARATOR . 'target' . DIRECTORY_SEPARATOR . 'file.txt'), $symlink->getTarget());
+        $this->assertSamePath($this->getResolvedCwd() . DIRECTORY_SEPARATOR . 'link.txt', $symlink->getLink());
+
+        putenv('SYMLINKS_TEST_CI');
+        putenv('SYMLINKS_TEST_PROFILE');
+
+        chdir($cwd);
+    }
+
+    public function testProcessHonoursEnvFalseConditionAsFallback(): void
+    {
+        $tmp = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'factory_' . uniqid();
+        mkdir($tmp);
+        mkdir($tmp . DIRECTORY_SEPARATOR . 'target');
+        file_put_contents($tmp . DIRECTORY_SEPARATOR . 'target' . DIRECTORY_SEPARATOR . 'file.txt', 'content');
+        $cwd = getcwd();
+        chdir($tmp);
+
+        putenv('SYMLINKS_TEST_CI');
+
+        $composer = new Composer();
+        $dispatcher = new EventDispatcher($composer, new NullIO());
+        $composer->setEventDispatcher($dispatcher);
+        $package = new RootPackage('test/test', '1.0.0', '1.0.0');
+        $package->setExtra([
+            'somework/composer-symlinks' => [
+                'symlinks' => [
+                    'target/file.txt' => [
+                        'link' => 'link.txt',
+                        'conditions' => [
+                            'env' => [
+                                'SYMLINKS_TEST_CI' => false
+                            ]
+                        ]
+                    ]
+                ]
+            ]
+        ]);
+        $composer->setPackage($package);
+
+        $event = new Event('post-install-cmd', $composer, new NullIO());
+        $factory = new SymlinksFactory($event, new Filesystem());
+        $symlinks = $factory->process();
+
+        $this->assertCount(1, $symlinks);
+        $this->assertSamePath($this->getResolvedCwd() . DIRECTORY_SEPARATOR . 'link.txt', $symlinks[0]->getLink());
+
+        chdir($cwd);
+    }
+
+    public function testProcessSupportsMultipleDefinitionsPerTarget(): void
+    {
+        $tmp = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'factory_' . uniqid();
+        mkdir($tmp);
+        mkdir($tmp . DIRECTORY_SEPARATOR . 'target');
+        file_put_contents($tmp . DIRECTORY_SEPARATOR . 'target' . DIRECTORY_SEPARATOR . 'file.txt', 'content');
+        $cwd = getcwd();
+        chdir($tmp);
+
+        putenv('SYMLINKS_TEST_ENV=dev');
+
+        $composer = new Composer();
+        $dispatcher = new EventDispatcher($composer, new NullIO());
+        $composer->setEventDispatcher($dispatcher);
+        $package = new RootPackage('test/test', '1.0.0', '1.0.0');
+        $package->setExtra([
+            'somework/composer-symlinks' => [
+                'symlinks' => [
+                    'target/file.txt' => [
+                        [
+                            'link' => 'links/dev.txt',
+                            'conditions' => [
+                                'env' => [
+                                    'SYMLINKS_TEST_ENV' => 'dev'
+                                ]
+                            ]
+                        ],
+                        [
+                            'link' => 'links/prod.txt',
+                            'conditions' => [
+                                'env' => [
+                                    'SYMLINKS_TEST_ENV' => 'prod'
+                                ]
+                            ]
+                        ]
+                    ]
+                ]
+            ]
+        ]);
+        $composer->setPackage($package);
+
+        $event = new Event('post-install-cmd', $composer, new NullIO());
+        $factory = new SymlinksFactory($event, new Filesystem());
+        $symlinks = $factory->process();
+
+        $this->assertCount(1, $symlinks);
+        $this->assertSamePath($this->getResolvedCwd() . DIRECTORY_SEPARATOR . 'links' . DIRECTORY_SEPARATOR . 'dev.txt', $symlinks[0]->getLink());
+
+        putenv('SYMLINKS_TEST_ENV');
+        chdir($cwd);
+    }
+
     public function testProcessSkipsMissingTargetPerLink(): void
     {
         $tmp = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'factory_' . uniqid();
