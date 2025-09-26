@@ -11,6 +11,7 @@ class CommandProvider implements CommandProviderCapability
     {
         return [
             new RefreshCommand(),
+            new StatusCommand(),
         ];
     }
 }
