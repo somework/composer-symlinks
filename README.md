@@ -96,7 +96,27 @@ $ composer symlinks:refresh --dry-run
 The legacy environment variable `SYMLINKS_DRY_RUN=1` is still honoured during
 Composer hooks for backwards compatibility.
 
-### 3. Execute composer
+### 3. Inspect symlink status
+
+Audit the current state of the configured links without modifying the
+filesystem:
+
+```bash
+$ composer symlinks:status
+```
+
+The command compares the configuration with the registry file and the actual
+filesystem. The report highlights missing links, mismatched targets, and stale
+entries that are present in the registry but no longer configured. Use the
+`--strict` option to make the command exit with a non-zero code when problems
+are detected (ideal for CI pipelines), and `--json` to obtain a machine-readable
+summary:
+
+```bash
+$ composer symlinks:status --json --strict
+```
+
+### 4. Execute composer
 
 DO NOT use --no-plugins for composer install or update
 
@@ -132,6 +152,9 @@ removed.
 | `Link ... already exists` | A file/directory already occupies the link path. |
 | `Cant unlink ...` | The plugin failed to remove a file when using `force-create`. |
 | `Failed to create symlink ... Enable Windows Developer Mode ...` | Windows denied symlink creation. Enable Developer Mode or set `windows-mode` to `junction`/`copy`. |
+
+Run `composer symlinks:status` after encountering an error to obtain a detailed
+report of which links are missing or pointing to unexpected targets.
 
 ### Windows compatibility
 
