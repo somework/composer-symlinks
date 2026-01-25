@@ -29,7 +29,7 @@
   },
   "require": {
     "php": ">=7.4",
-    "composer-plugin-api": "^2.0"
+    "composer-plugin-api": "^2.1"
   },
   "require-dev": {
     "friendsofphp/php-cs-fixer": "@stable",

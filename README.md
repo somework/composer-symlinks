@@ -118,7 +118,26 @@ $ composer symlinks:status --json --strict
 
 ### 4. Execute composer
 
-DO NOT use --no-plugins for composer install or update
+Composer disables plugins when running with `--no-plugins` and the commands
+registered by this package will not be available. If you see
+`There are no commands defined in the "symlinks" namespace`, check the
+following in order:
+
+1. **Composer version**: the `symlinks:*` commands require Composer v2.1+
+   (command provider capability). With Composer v2.0 the plugin still runs
+   automatically during `composer install`/`update`, but the manual command
+   namespace is not available. In that case, re-run `composer install` or call
+   the hook directly via `composer run-script post-install-cmd`.
+2. **Plugin allowance**: `somework/composer-symlinks` must be listed under
+   `config.allow-plugins` (e.g. `composer config allow-plugins.somework/composer-symlinks true`).
+3. **Plugins enabled**: ensure you are not using `--no-plugins` when invoking
+   Composer.
+
+Example:
+
+```bash
+$ composer symlinks:refresh
+```
 
 ### Dry run
 
