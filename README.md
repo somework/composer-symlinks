@@ -185,3 +185,15 @@ Reporting an issue or a feature request
 ---------------------------------------
 
 Issues and feature requests are tracked in the [Github issue tracker](https://github.com/somework/composer-symlinks/issues).
+
+
+## Maintained by
+
+[Igor Pinchuk](https://github.com/somework) — I work on legacy PHP and Symfony systems:
+audits, rescue and refactoring, performance. My open-source packages have been installed
+over 70,000 times on Packagist.
+
+Inherited a codebase nobody wants to touch? Written questions get written answers —
+no discovery call required.
+[i.pinchuk.work@gmail.com](mailto:i.pinchuk.work@gmail.com) ·
+[LinkedIn](https://www.linkedin.com/in/kolgarn/)
