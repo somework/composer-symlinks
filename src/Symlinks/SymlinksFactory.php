@@ -4,7 +4,9 @@ declare(strict_types=1);
 namespace SomeWork\Symlinks;
 
 use Composer\Script\Event;
+use Composer\Semver\Semver;
 use Composer\Util\Filesystem;
+use Composer\Util\Platform;
 
 class SymlinksFactory
 {
@@ -20,6 +22,7 @@ class SymlinksFactory
     const THROW_EXCEPTION = 'throw-exception';
     const FORCE_CREATE = 'force-create';
     const WINDOWS_MODE = 'windows-mode';
+    const CONDITIONS = 'conditions';
 
     protected Filesystem $fileSystem;
     protected Event $event;
@@ -47,19 +50,24 @@ class SymlinksFactory
 
         $symlinks = [];
         foreach ($symlinksData as $target => $linkData) {
-            try {
-                $symlinks[] = $this->processSymlink($target, $linkData);
-            } catch (SymlinksException $exception) {
-                if ($this->getConfig(static::THROW_EXCEPTION, $linkData, true)) {
-                    throw $exception;
+            foreach ($this->normalizeSymlinkDefinitions($linkData) as $definition) {
+                if ($this->shouldSkipSymlink($definition)) {
+                    continue;
                 }
-                $this->event->getIO()->writeError(
-                    sprintf(
-                        '  Error while process <comment>%s</comment>: <comment>%s</comment>',
-                        $target,
-                        $exception->getMessage()
-                    )
-                );
+                try {
+                    $symlinks[] = $this->processSymlink($target, $definition);
+                } catch (SymlinksException $exception) {
+                    if ($this->getConfig(static::THROW_EXCEPTION, $definition, true)) {
+                        throw $exception;
+                    }
+                    $this->event->getIO()->writeError(
+                        sprintf(
+                            '  Error while process <comment>%s</comment>: <comment>%s</comment>',
+                            $target,
+                            $exception->getMessage()
+                        )
+                    );
+                }
             }
         }
 
@@ -199,6 +207,219 @@ class SymlinksFactory
         }
 
         return array_unique($configs, SORT_REGULAR);
+    }
+
+    private function normalizeSymlinkDefinitions($linkData): array
+    {
+        if (\is_array($linkData) && !$this->isAssociativeArray($linkData)) {
+            $normalized = [];
+            foreach ($linkData as $definition) {
+                if (!\is_array($definition) && !\is_string($definition)) {
+                    throw new InvalidArgumentException('Each symlink definition must be either a string link or a configuration array.');
+                }
+                $normalized[] = $definition;
+            }
+
+            return $normalized;
+        }
+
+        if (!\is_array($linkData) && !\is_string($linkData)) {
+            throw new InvalidArgumentException('Symlink definitions must be provided as strings or arrays.');
+        }
+
+        return [$linkData];
+    }
+
+    private function shouldSkipSymlink($linkData): bool
+    {
+        if (!\is_array($linkData) || !\array_key_exists(static::CONDITIONS, $linkData)) {
+            return false;
+        }
+
+        $conditions = $linkData[static::CONDITIONS];
+        if (!\is_array($conditions)) {
+            throw new InvalidArgumentException('The conditions option must be an array.');
+        }
+
+        if (isset($conditions['os']) && !$this->matchesOsCondition($conditions['os'])) {
+            return true;
+        }
+
+        if (isset($conditions['env']) && !$this->matchesEnvCondition($conditions['env'])) {
+            return true;
+        }
+
+        if (isset($conditions['php-version']) && !$this->matchesPhpVersionCondition($conditions['php-version'])) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * @param array|string $condition
+     */
+    private function matchesOsCondition($condition): bool
+    {
+        if (\is_string($condition)) {
+            $condition = [$condition];
+        }
+
+        if (!\is_array($condition)) {
+            throw new InvalidArgumentException('The os condition must be a string or an array of strings.');
+        }
+
+        $currentOs = strtolower(PHP_OS_FAMILY ?? '');
+        foreach ($condition as $value) {
+            if (!\is_string($value)) {
+                throw new InvalidArgumentException('The os condition must contain only strings.');
+            }
+
+            if ($currentOs === strtolower($value)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @param array|string $condition
+     */
+    private function matchesEnvCondition($condition): bool
+    {
+        if (\is_string($condition)) {
+            $condition = [$condition];
+        }
+
+        if (!\is_array($condition)) {
+            throw new InvalidArgumentException('The env condition must be a string or an array.');
+        }
+
+        $isAssoc = $this->isAssociativeArray($condition);
+        if (!$isAssoc) {
+            $condition = array_fill_keys($condition, true);
+        }
+
+        foreach ($condition as $name => $expected) {
+            if (!\is_string($name)) {
+                throw new InvalidArgumentException('Environment variable names must be strings.');
+            }
+
+            $value = $this->getEnvironmentValue($name);
+
+            if ($expected === true) {
+                if (!$this->isTruthy($value)) {
+                    return false;
+                }
+                continue;
+            }
+
+            if ($expected === false) {
+                if ($this->isTruthy($value)) {
+                    return false;
+                }
+                continue;
+            }
+
+            if ($expected === null) {
+                if ($value !== null && $value !== '') {
+                    return false;
+                }
+                continue;
+            }
+
+            $expectedValues = \is_array($expected) ? $expected : [$expected];
+            $normalizedExpected = [];
+            foreach ($expectedValues as $singleExpected) {
+                if (!\is_scalar($singleExpected) && $singleExpected !== null) {
+                    throw new InvalidArgumentException('Environment variable expectations must be scalar values or arrays of scalar values.');
+                }
+                if ($singleExpected !== null) {
+                    $normalizedExpected[] = (string) $singleExpected;
+                }
+            }
+
+            if ($value === null) {
+                return false;
+            }
+
+            if ($normalizedExpected === []) {
+                if ($value !== '') {
+                    return false;
+                }
+                continue;
+            }
+
+            if (!\in_array($value, $normalizedExpected, true)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * @param array|string $condition
+     */
+    private function matchesPhpVersionCondition($condition): bool
+    {
+        if (\is_string($condition)) {
+            $condition = [$condition];
+        }
+
+        if (!\is_array($condition)) {
+            throw new InvalidArgumentException('The php-version condition must be a string or an array of strings.');
+        }
+
+        $version = method_exists(Platform::class, 'getPhpVersion') ? Platform::getPhpVersion() : PHP_VERSION;
+
+        foreach ($condition as $constraint) {
+            if (!\is_string($constraint)) {
+                throw new InvalidArgumentException('The php-version condition must contain only strings.');
+            }
+
+            if (Semver::satisfies($version, $constraint)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function isAssociativeArray(array $array): bool
+    {
+        return array_keys($array) !== range(0, count($array) - 1);
+    }
+
+    private function getEnvironmentValue(string $name): ?string
+    {
+        $value = null;
+
+        if (class_exists(Platform::class)) {
+            $value = Platform::getEnv($name);
+        }
+
+        if ($value === false || $value === null) {
+            $value = getenv($name);
+        }
+
+        if ($value === false) {
+            return null;
+        }
+
+        return $value !== null ? (string) $value : null;
+    }
+
+    private function isTruthy(?string $value): bool
+    {
+        if ($value === null) {
+            return false;
+        }
+
+        $normalized = strtolower($value);
+
+        return in_array($normalized, ['1', 'true', 'yes', 'on'], true);
     }
 
     protected function getLink($linkData): string

@@ -43,7 +43,12 @@ For personal configs `link` must be defined
                     "link": "web/dest",
                     "skip-missing-target": false,
                     "absolute-path": true,
-                    "throw-exception": false
+                    "throw-exception": false,
+                    "conditions": {
+                        "env": {
+                            "CI": true
+                        }
+                    }
                 }
             },
             "force-create": false,
@@ -61,6 +66,89 @@ created in the file `vendor/composer-symlinks-state.json`. On the next run the
 registry is compared with the current configuration: entries missing from the
 configuration are deleted from both the registry and the filesystem. The file
 is recreated automatically and can safely be ignored by VCS.
+
+### Conditional symlinks
+
+Symlink definitions can include a `conditions` section to restrict when they
+are processed. Every configured filter must match for the symlink to be
+considered; otherwise it is skipped without raising an error. The following
+filters are supported:
+
+| Key | Description |
+| --- | --- |
+| `os` | Limit the entry to one or more operating systems. Accepted values correspond to `PHP_OS_FAMILY` (for example `"windows"`, `"linux"`, `"darwin"`). |
+| `env` | Require specific environment variables. Provide a map of variable names to expectations. Boolean `true` means the variable must be set to a truthy value (`1`, `true`, `yes`, or `on`), boolean `false` matches when the variable is missing or evaluates to false, strings or arrays of strings match exact values. |
+| `php-version` | Composer-style semantic version constraint evaluated against the current PHP version (including Composer's `config.platform` overrides). |
+
+This makes it easy to express different behaviour across CI and local
+development environments:
+
+```json
+{
+    "extra": {
+        "somework/composer-symlinks": {
+            "symlinks": {
+                "build/artifacts": {
+                    "link": "storage/build",
+                    "conditions": {
+                        "env": {
+                            "CI": true
+                        }
+                    }
+                },
+                "runtime/cache": {
+                    "link": "storage/cache",
+                    "conditions": {
+                        "env": {
+                            "CI": false
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+```
+
+On CI the plugin creates the `build/artifacts` link, while local executions
+fallback to the `runtime/cache` link.
+
+Multiple link definitions can be attached to the same target by providing an
+array. This is useful when the link path should change across environments
+without duplicating the target entry:
+
+```json
+{
+    "extra": {
+        "somework/composer-symlinks": {
+            "symlinks": {
+                "shared/config.php": [
+                    {
+                        "link": "deploy/dev/config.php",
+                        "conditions": {
+                            "env": {
+                                "APP_ENV": "dev"
+                            }
+                        }
+                    },
+                    {
+                        "link": "deploy/prod/config.php",
+                        "conditions": {
+                            "env": {
+                                "APP_ENV": "prod"
+                            }
+                        }
+                    }
+                ]
+            }
+        }
+    }
+}
+```
+
+With the example above the plugin links `shared/config.php` into the
+environment-specific directory, keeping the configuration DRY while avoiding
+duplicate target keys in the JSON.
 
 ### Placeholder syntax
 
